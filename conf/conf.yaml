@@ -4,13 +4,9 @@ etcd:
     # e.g. https://127.0.0.1:2379.
   prefix: /apisix                 # apisix configurations prefix
   timeout: 30                     # 30 seconds
-  #resync_delay: 5                # when sync failed and a rest is needed, resync after the configured seconds plus 50% random jitter
-  #health_check_timeout: 10       # etcd retry the unhealthy nodes after the configured seconds
   #user: root                     # root username for etcd
   #password: 5tHkHhYkjr6cQY       # root password for etcd
   tls:
-    # To enable etcd client certificate you need to build APISIX-Openresty, see
-    # http://apisix.apache.org/docs/apisix/how-to-build#6-build-openresty-for-apisix
     #cert: /path/to/cert          # path of certificate used by the etcd client
     #key: /path/to/key            # path of key used by the etcd client
 
@@ -19,7 +15,7 @@ etcd:
 
 discovery:                       # service discovery center
   nacos:
-    host:                        # it's possible to define multiple nacos hosts addresses of the same eureka cluster.
+    host:                        # it's possible to define multiple nacos hosts addresses of the same nacos cluster.
       - "http://127.0.0.1:8848"
     prefix: /nacos/v1/
     weight: 100                  # default weight for node
