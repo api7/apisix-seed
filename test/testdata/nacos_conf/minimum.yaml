@@ -1,0 +1,5 @@
+host:
+  - "http://127.0.0.1:8848"
+weight: -1
+timeout:
+  connect: -1
