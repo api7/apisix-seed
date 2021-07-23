@@ -1,0 +1,8 @@
+host:
+  - "http://127.0.0.1:8858"
+prefix: /nacos/v2/
+weight: 10
+timeout:
+  connect: 200
+  send: 200
+  read: 500

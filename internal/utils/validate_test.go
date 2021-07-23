@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -11,6 +14,15 @@ type TestObj struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 	Age   int    `json:"age"`
+}
+
+func ReadFile(t *testing.T, file string) []byte {
+	wd, _ := os.Getwd()
+	dir := wd[:strings.Index(wd, "internal")]
+	path := filepath.Join(dir, "test/testdata/", file)
+	bs, err := ioutil.ReadFile(path)
+	assert.Nil(t, err)
+	return bs
 }
 
 func TestJsonSchemaValidator_Validate(t *testing.T) {
@@ -21,7 +33,7 @@ func TestJsonSchemaValidator_Validate(t *testing.T) {
 		wantValidateErr []error
 	}{
 		{
-			givePath: "./test_case.json",
+			givePath: "validate_test.json",
 			giveObj: TestObj{
 				Name:  "lessName",
 				Email: "too long name greater than 10",
@@ -35,7 +47,7 @@ func TestJsonSchemaValidator_Validate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		bs, _ := ioutil.ReadFile(tc.givePath)
+		bs := ReadFile(t, tc.givePath)
 		v, err := NewJsonSchemaValidator(string(bs))
 		if err != nil {
 			assert.Equal(t, tc.wantNewErr, err)
