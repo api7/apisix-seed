@@ -3,8 +3,9 @@ package discoverer
 import (
 	"errors"
 	"fmt"
-	"github.com/api7/apisix-seed/internal/utils"
 	"strconv"
+
+	"github.com/api7/apisix-seed/internal/utils"
 )
 
 var (

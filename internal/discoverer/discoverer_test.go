@@ -2,10 +2,11 @@ package discoverer
 
 import (
 	"fmt"
-	"github.com/api7/apisix-seed/internal/utils"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/api7/apisix-seed/internal/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestQueryCheck(t *testing.T) {

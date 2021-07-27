@@ -2,10 +2,11 @@ package conf
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type DisBuilder func([]byte) (interface{}, error)
