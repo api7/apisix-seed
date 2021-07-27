@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+
 	"github.com/xeipuuv/gojsonschema"
 	"go.uber.org/zap/buffer"
 )
