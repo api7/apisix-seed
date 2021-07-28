@@ -19,3 +19,4 @@ jobs:
       - name: run unit test
         run: |
           make test
+      - uses: codecov/codecov-action@v2
