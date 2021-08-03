@@ -14,18 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-default: help
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Apache Software Foundation
 
-.PHONY: lint
-lint:
-	golangci-lint run --verbose ./...
+  paths-ignore:
+    - '.gitignore'
+    - 'dist'
+    - 'licenses'
+    - '**/*.md'
+    - '**/testdata/**'
+    - '**/go.mod'
+    - '**/go.sum'
+    - 'LICENSE'
+    - 'NOTICE'
+    - '**/*.json'
 
-.PHONY: test
-test:
-	go test -race -cover -coverprofile=coverage.txt ./...
-
-.PHONY: help
-help:
-	@echo Makefile rules:
-	@echo
-	@grep -E '^### [-A-Za-z0-9_]+:' Makefile | sed 's/###/   /'
+  comment: on-failure
