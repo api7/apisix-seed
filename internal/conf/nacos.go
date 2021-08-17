@@ -18,17 +18,32 @@ const schema = `
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^http(s)?:\\/\\/[a-zA-Z0-9-_.:\\@]+$",
+        "pattern": "^http(s)?:\\/\\/[a-zA-Z0-9-_.:]+$",
         "minLength": 2,
         "maxLength": 100
       }
     },
     "Prefix": {
       "type": "string",
-      "pattern": "^[\\/a-zA-Z0-9-_.]+$",
-      "maxLength": 100,
-      "default": "/nacos/v1/"
+      "pattern": "^[\\/a-zA-Z0-9-_.]*$",
+      "maxLength": 100
     },
+	"Namespace": {
+	  "type": "string",
+      "pattern": "^[a-zA-Z0-9-_.]+$",
+	  "maxLength": 100,
+	  "default": "public"
+	},
+	"Username": {
+	  "type": "string",
+	  "pattern": "^[a-zA-Z0-9-_.]*$",
+	  "maxLength": 100
+	},
+	"Password": {
+	  "type": "string",
+	  "pattern": "^[a-zA-Z0-9-_.]*$",
+	  "maxLength": 100
+	},
     "Weight": {
       "type": "integer",
       "minimum": 1,
@@ -68,18 +83,22 @@ type timeout struct {
 }
 
 type Nacos struct {
-	Host    []string
-	Prefix  string
-	Weight  int
-	Timeout timeout
+	Host      []string
+	Prefix    string
+	Namespace string
+	// TODO: Currently only all servers are supported with the same username and password
+	Username string
+	Password string
+	Weight   int
+	Timeout  timeout
 }
 
 func nacosBuilder(content []byte) (interface{}, error) {
 	// go jsonschema lib doesn't support setting default values
 	// so we need to set for some default fields ourselves.
 	nacos := Nacos{
-		Prefix: "/nacos/v1/",
-		Weight: 100,
+		Namespace: "public",
+		Weight:    100,
 		Timeout: timeout{
 			Connect: 2000,
 			Send:    2000,

@@ -1,0 +1,4 @@
+host:
+  - "http://console.nacos.io"
+prefix: ~
+namespace: apisix-seed-testcase
