@@ -45,8 +45,8 @@ func TestNacosValidator(t *testing.T) {
 			caseDesc: "Test pattern match",
 			givePath: "pattern.yaml",
 			wantValidateErr: []error{
-				fmt.Errorf("Host.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:]+$'\nPrefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'"),
-				fmt.Errorf("Prefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'\nHost.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:]+$'"),
+				fmt.Errorf("Host.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:\\@]+$'\nPrefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'"),
+				fmt.Errorf("Prefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'\nHost.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:\\@]+$'"),
 			},
 		},
 		{
@@ -83,9 +83,8 @@ func TestNacosBuilder(t *testing.T) {
 			caseDesc: "Test Builder: default value",
 			givePath: "default_value.yaml",
 			wantNacos: &Nacos{
-				Host:      []string{"http://127.0.0.1:8848"},
-				Namespace: "public",
-				Weight:    100,
+				Host:   []string{"http://127.0.0.1:8848"},
+				Weight: 100,
 				Timeout: timeout{
 					Connect: 2000,
 					Send:    2000,
@@ -97,12 +96,9 @@ func TestNacosBuilder(t *testing.T) {
 			caseDesc: "Test Builder: set value",
 			givePath: "set_value.yaml",
 			wantNacos: &Nacos{
-				Host:      []string{"http://127.0.0.1:8858"},
-				Prefix:    "/nacos/v2/",
-				Namespace: "pub",
-				Username:  "apisix",
-				Password:  "apisix-seed",
-				Weight:    10,
+				Host:   []string{"http://127.0.0.1:8858"},
+				Prefix: "/nacos/v2/",
+				Weight: 10,
 				Timeout: timeout{
 					Connect: 200,
 					Send:    200,

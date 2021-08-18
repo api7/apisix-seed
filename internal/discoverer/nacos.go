@@ -3,95 +3,83 @@ package discoverer
 import (
 	"errors"
 	"fmt"
+	"hash"
+	"hash/crc32"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/nacos-group/nacos-sdk-go/model"
-
-	"github.com/api7/apisix-seed/internal/utils"
-
-	"github.com/nacos-group/nacos-sdk-go/clients"
-	"github.com/nacos-group/nacos-sdk-go/vo"
-
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/comm"
+	"github.com/api7/apisix-seed/internal/utils"
+	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
+	"github.com/nacos-group/nacos-sdk-go/model"
+	"github.com/nacos-group/nacos-sdk-go/vo"
 )
 
 func init() {
 	Discoveries["nacos"] = NewNacosDiscoverer
 }
 
+func serviceID(service string, args map[string]string) string {
+	serviceId := fmt.Sprintf("%s@%s@%s", args["namespace_id"], args["group_name"], service)
+	return serviceId
+}
+
 type NacosDiscoverer struct {
-	weight int
-	// nacos client default config
-	ClientConfig constant.ClientConfig
-	// nacos server configs
-	ServerConfigs []constant.ServerConfig
-	// nacos naming clients
-	namingClients map[string]naming_client.INamingClient
+	timeout uint64
+	weight  int
+	// nacos server configs, grouping by authentication information
+	ServerConfigs map[string][]constant.ServerConfig
+	// nacos naming clients, grouping by authentication information
+	namingClients map[string][]naming_client.INamingClient
 
 	params map[string]*vo.SubscribeParam
-	cache  map[string]Service
+	cache  map[string]*Service
 	mu     sync.Mutex
+
+	crc hash.Hash32
 
 	watchCh chan *comm.Watch
 }
 
 func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 	config := disConfig.(*conf.Nacos)
-	timeout := config.Timeout
 
-	clientConfig := constant.ClientConfig{
-		// compatible with past timeout configurations
-		TimeoutMs:           uint64(timeout.Connect + timeout.Read + timeout.Send),
-		NamespaceId:         config.Namespace,
-		Username:            config.Username,
-		Password:            config.Password,
-		NotLoadCacheAtStart: true,
-	}
-
-	serverConfigs := make([]constant.ServerConfig, len(config.Host))
-	for i, host := range config.Host {
-		schemaEnd, ipEnd := strings.Index(host, "://"), strings.LastIndex(host, ":")
+	serverConfigs := make(map[string][]constant.ServerConfig)
+	for _, host := range config.Host {
+		u, err := url.Parse(host)
+		if err != nil {
+			return nil, err
+		}
 
 		port := 80 // default port
-		if schemaEnd != ipEnd {
-			port, _ = strconv.Atoi(host[ipEnd+1:])
-		} else {
-			ipEnd = len(host)
+		if portStr := u.Port(); len(portStr) != 0 {
+			port, _ = strconv.Atoi(portStr)
 		}
 
-		serverConfigs[i] = constant.ServerConfig{
-			IpAddr:      host[schemaEnd+len("://") : ipEnd],
+		auth := u.User.String()
+		serverConfigs[auth] = append(serverConfigs[auth], constant.ServerConfig{
+			IpAddr:      u.Hostname(),
 			Port:        uint64(port),
-			Scheme:      host[:schemaEnd],
+			Scheme:      u.Scheme,
 			ContextPath: config.Prefix,
-		}
+		})
 	}
 
-	namingClients := make(map[string]naming_client.INamingClient, 1)
-	defaultClient, err := clients.NewNamingClient(
-		vo.NacosClientParam{
-			ClientConfig:  &clientConfig,
-			ServerConfigs: serverConfigs,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	namingClients[config.Namespace] = defaultClient
-
+	timeout := config.Timeout
 	discoverer := NacosDiscoverer{
+		timeout:       uint64(timeout.Connect + timeout.Read + timeout.Send),
 		weight:        config.Weight,
-		ClientConfig:  clientConfig,
 		ServerConfigs: serverConfigs,
-		namingClients: namingClients,
+		namingClients: make(map[string][]naming_client.INamingClient),
 		params:        make(map[string]*vo.SubscribeParam),
-		cache:         make(map[string]Service),
+		cache:         make(map[string]*Service),
 		mu:            sync.Mutex{},
+		crc:           crc32.NewIEEE(),
 		watchCh:       make(chan *comm.Watch, 10),
 	}
 	return &discoverer, nil
@@ -114,16 +102,15 @@ func (d *NacosDiscoverer) Query(query *comm.Query) error {
 	if err != nil {
 		return err
 	}
-	d.defaultNamespace(&args)
 
 	event, entity, service := values[0], values[1], values[2]
-	serviceId := fmt.Sprintf("%s@%s@%s", args["namespace"], args["group"], service)
+	serviceId := serviceID(service, args)
 
 	d.mu.Lock()
 	switch event {
 	case utils.EventAdd:
 		ok := false
-		var cacheService Service
+		var cacheService *Service
 		if cacheService, ok = d.cache[serviceId]; ok {
 			// cache information is already available
 			cacheService.entities[entity] = struct{}{}
@@ -136,7 +123,7 @@ func (d *NacosDiscoverer) Query(query *comm.Query) error {
 				return err
 			}
 
-			cacheService = Service{
+			cacheService = &Service{
 				name:     service,
 				nodes:    nodes,
 				entities: map[string]struct{}{entity: {}},
@@ -175,15 +162,13 @@ func (d *NacosDiscoverer) Update(update *comm.Update) error {
 	if err != nil {
 		return err
 	}
-	d.defaultNamespace(&oldArgs)
-	d.defaultNamespace(&newArgs)
 
 	event, service := values[0], values[1]
 	if event != utils.EventUpdate {
 		return errors.New("incorrect update event")
 	}
-	serviceId := fmt.Sprintf("%s@%s@%s", oldArgs["namespace"], oldArgs["group"], service)
-	newServiceId := fmt.Sprintf("%s@%s@%s", newArgs["namespace"], newArgs["group"], service)
+	serviceId := serviceID(service, oldArgs)
+	newServiceId := serviceID(service, newArgs)
 
 	d.mu.Lock()
 	if cacheService, ok := d.cache[serviceId]; ok {
@@ -218,33 +203,27 @@ func (d *NacosDiscoverer) Watch() chan *comm.Watch {
 
 func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node, error) {
 	// if the namespace client has not yet been created
-	namespace := args["namespace"]
+	namespace := args["namespace_id"]
 	if _, ok := d.namingClients[namespace]; !ok {
-		clientConfig := d.ClientConfig
-		clientConfig.NamespaceId = namespace
-		client, err := clients.NewNamingClient(
-			vo.NacosClientParam{
-				ClientConfig:  &clientConfig,
-				ServerConfigs: d.ServerConfigs,
-			},
-		)
+		err := d.newClient(namespace)
 		if err != nil {
 			return nil, err
 		}
-		d.namingClients[namespace] = client
 	}
 
-	client := d.namingClients[namespace]
+	serviceId := serviceID(service, args)
+	client := d.namingClients[namespace][d.hash(serviceId, namespace)]
+
 	serviceInfo, err := client.GetService(vo.GetServiceParam{
 		ServiceName: service,
-		GroupName:   args["group"],
+		GroupName:   args["group_name"],
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	// watch the new service
-	if err := d.subscribe(service, args); err != nil {
+	if err := d.subscribe(service, args, client); err != nil {
 		return nil, err
 	}
 
@@ -284,7 +263,6 @@ func (d *NacosDiscoverer) watch(serviceId string) func([]model.SubscribeService,
 		d.mu.Lock()
 		cacheService := d.cache[serviceId]
 		cacheService.nodes = nodes
-		d.cache[serviceId] = cacheService
 		d.mu.Unlock()
 
 		watch, _ := cacheService.EncodeWatch()
@@ -294,15 +272,14 @@ func (d *NacosDiscoverer) watch(serviceId string) func([]model.SubscribeService,
 	return watch
 }
 
-func (d *NacosDiscoverer) subscribe(service string, args map[string]string) error {
-	serviceId := fmt.Sprintf("%s@%s@%s", args["namespace"], args["group"], service)
+func (d *NacosDiscoverer) subscribe(service string, args map[string]string, client naming_client.INamingClient) error {
+	serviceId := serviceID(service, args)
 	param := &vo.SubscribeParam{
 		ServiceName:       service,
-		GroupName:         args["group"],
+		GroupName:         args["group_name"],
 		SubscribeCallback: d.watch(serviceId),
 	}
 
-	client := d.namingClients[args["namespace"]]
 	// TODO: retry if failed to Subscribe
 	err := client.Subscribe(param)
 	if err == nil {
@@ -313,23 +290,60 @@ func (d *NacosDiscoverer) subscribe(service string, args map[string]string) erro
 	return err
 }
 
-func (d *NacosDiscoverer) unsubscribe(service Service) {
-	serviceId := fmt.Sprintf("%s@%s@%s", service.args["namespace"], service.args["group"], service.name)
+func (d *NacosDiscoverer) unsubscribe(service *Service) {
+	serviceId := serviceID(service.name, service.args)
 	param := d.params[serviceId]
 
-	client := d.namingClients[service.args["namespace"]]
+	namespace := service.args["namespace_id"]
+	client := d.namingClients[namespace][d.hash(serviceId, namespace)]
 	// the nacos unsubscribe function returns only nil
 	// so ignore the error handling
 	_ = client.Unsubscribe(param)
 	delete(d.params, serviceId)
 }
 
-func (d *NacosDiscoverer) defaultNamespace(args *map[string]string) {
-	// set default namespace
-	if _, ok := (*args)["namespace"]; !ok {
-		if (*args) == nil {
-			*args = make(map[string]string, 1)
+func (d *NacosDiscoverer) newClient(namespace string) error {
+	newClients := make([]naming_client.INamingClient, 0, len(d.ServerConfigs))
+	for auth, serverConfigs := range d.ServerConfigs {
+		var username, password string
+		if len(auth) != 0 {
+			strs := strings.Split(auth, ":")
+			if l := len(strs); l == 1 {
+				username = strs[0]
+			} else if l == 2 {
+				username, password = strs[0], strs[1]
+			} else {
+				return errors.New("incorrect auth information")
+			}
 		}
-		(*args)["namespace"] = d.ClientConfig.NamespaceId
+
+		clientConfig := constant.ClientConfig{
+			// compatible with past timeout configurations
+			TimeoutMs:           d.timeout,
+			NamespaceId:         namespace,
+			Username:            username,
+			Password:            password,
+			NotLoadCacheAtStart: true,
+		}
+		client, err := clients.NewNamingClient(
+			vo.NacosClientParam{
+				ClientConfig:  &clientConfig,
+				ServerConfigs: serverConfigs,
+			},
+		)
+		if err != nil {
+			return err
+		}
+		newClients = append(newClients, client)
 	}
+
+	d.namingClients[namespace] = newClients
+	return nil
+}
+
+// hash distributes the serviceId to different clients using CRC32
+func (d *NacosDiscoverer) hash(serviceId, namespace string) int {
+	d.crc.Reset()
+	_, _ = d.crc.Write([]byte(serviceId))
+	return int(d.crc.Sum32()) % len(d.namingClients[namespace])
 }

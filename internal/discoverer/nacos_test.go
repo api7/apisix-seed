@@ -10,17 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/api7/apisix-seed/internal/utils"
-
-	"github.com/api7/apisix-seed/internal/core/comm"
-
-	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
-
-	"github.com/nacos-group/nacos-sdk-go/clients"
-	"github.com/nacos-group/nacos-sdk-go/vo"
-
 	"github.com/api7/apisix-seed/internal/conf"
-
+	"github.com/api7/apisix-seed/internal/core/comm"
+	"github.com/api7/apisix-seed/internal/utils"
+	"github.com/nacos-group/nacos-sdk-go/clients"
+	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
+	"github.com/nacos-group/nacos-sdk-go/common/constant"
+	"github.com/nacos-group/nacos-sdk-go/vo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,10 +28,8 @@ var TestGroup string
 func init() {
 	bc := ReadFile("discoverer.yaml")
 	nacosConf, _ = conf.DisBuilders["nacos"](bc)
-	realConf := nacosConf.(*conf.Nacos)
 
 	rand.Seed(time.Now().UnixNano())
-	realConf.Namespace = fmt.Sprintf("%s-%d", realConf.Namespace, rand.Int())
 	TestService = fmt.Sprintf("APISIX-SEED-TEST-%d", rand.Int())
 	TestGroup = fmt.Sprintf("Group-%d", rand.Int())
 }
@@ -48,8 +42,8 @@ func TestNacosDiscoverer(t *testing.T) {
 	// For register some services to test
 	registerClient, _ = clients.NewNamingClient(
 		vo.NacosClientParam{
-			ClientConfig:  &nacosDiscoverer.ClientConfig,
-			ServerConfigs: nacosDiscoverer.ServerConfigs,
+			ClientConfig:  &constant.ClientConfig{},
+			ServerConfigs: nacosDiscoverer.ServerConfigs[""],
 		},
 	)
 
@@ -136,7 +130,7 @@ key: node, value: 10.0.0.13:8848
 key: weight, value: 10`, TestService)
 
 	// update group argument
-	update := newUpdate(t, utils.EventUpdate, nil, map[string]string{"group": TestGroup})
+	update := newUpdate(t, utils.EventUpdate, nil, map[string]string{"group_name": TestGroup})
 	err := discoverer.Update(&update)
 	assert.Nil(t, err)
 	watchMsg := <-discoverer.Watch()
@@ -146,7 +140,7 @@ key: weight, value: 10`, TestService)
 func testDeleteService(t *testing.T, discoverer Discoverer) {
 	caseDesc := "Test delete service"
 	// First delete the service
-	query := newQuery(t, utils.EventDelete, map[string]string{"group": TestGroup})
+	query := newQuery(t, utils.EventDelete, map[string]string{"group_name": TestGroup})
 	err := discoverer.Query(&query)
 	assert.Nil(t, err)
 

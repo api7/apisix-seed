@@ -1,9 +1,6 @@
 host:
   - "http://127.0.0.1:8858"
 prefix: /nacos/v2/
-namespace: pub
-username: apisix
-password: apisix-seed
 weight: 10
 timeout:
   connect: 200
