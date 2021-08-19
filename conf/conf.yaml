@@ -18,9 +18,6 @@ discovery:                       # service discovery center
     host:                        # it's possible to define multiple nacos hosts addresses of the same nacos cluster.
       - "http://127.0.0.1:8848"
     prefix: /nacos/v1/
-    namespace: public            # default namespace for service discovery
-    username: apisix
-    password: apisix-seed
     weight: 100                  # default weight for node
     timeout:
       connect: 2000              # default 2000ms

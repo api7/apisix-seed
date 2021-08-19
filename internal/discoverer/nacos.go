@@ -72,6 +72,7 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 
 	timeout := config.Timeout
 	discoverer := NacosDiscoverer{
+		// compatible with past timeout configurations
 		timeout:       uint64(timeout.Connect + timeout.Read + timeout.Send),
 		weight:        config.Weight,
 		ServerConfigs: serverConfigs,
@@ -318,7 +319,6 @@ func (d *NacosDiscoverer) newClient(namespace string) error {
 		}
 
 		clientConfig := constant.ClientConfig{
-			// compatible with past timeout configurations
 			TimeoutMs:           d.timeout,
 			NamespaceId:         namespace,
 			Username:            username,

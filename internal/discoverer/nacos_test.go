@@ -20,24 +20,43 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var nacosConf interface{}
 var registerClient naming_client.INamingClient
 var TestService string
 var TestGroup string
 
 func init() {
-	bc := ReadFile("discoverer.yaml")
-	nacosConf, _ = conf.DisBuilders["nacos"](bc)
-
 	rand.Seed(time.Now().UnixNano())
 	TestService = fmt.Sprintf("APISIX-SEED-TEST-%d", rand.Int())
 	TestGroup = fmt.Sprintf("Group-%d", rand.Int())
 }
 
-func TestNacosDiscoverer(t *testing.T) {
+func TestServerConfig(t *testing.T) {
+	bc := ReadFile("host.yaml")
+	nacosConf, _ := conf.DisBuilders["nacos"](bc)
 	discoverer, err := NewNacosDiscoverer(nacosConf)
-	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 	assert.Nil(t, err)
+	nacosDiscoverer := discoverer.(*NacosDiscoverer)
+
+	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
+		assert.True(t, auth == "username:password", "Test auth")
+		assert.Len(t, serverConfigs, 1)
+
+		config := serverConfigs[0]
+		assert.True(t, config.Scheme == "https", "Test scheme")
+		assert.True(t, config.Port == 8858, "Test port")
+	}
+
+	err = nacosDiscoverer.newClient("APISIX")
+	assert.Nil(t, err)
+}
+
+func TestNacosDiscoverer(t *testing.T) {
+	bc := ReadFile("discoverer.yaml")
+	nacosConf, _ := conf.DisBuilders["nacos"](bc)
+
+	discoverer, err := NewNacosDiscoverer(nacosConf)
+	assert.Nil(t, err)
+	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 
 	// For register some services to test
 	registerClient, _ = clients.NewNamingClient(
