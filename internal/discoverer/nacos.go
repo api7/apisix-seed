@@ -56,7 +56,7 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 			return nil, err
 		}
 
-		port := 80 // default port
+		port := 8848 // nacos default port
 		if portStr := u.Port(); len(portStr) != 0 {
 			port, _ = strconv.Atoi(portStr)
 		}
