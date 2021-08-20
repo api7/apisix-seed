@@ -20,9 +20,9 @@ func TestServiceEncodeWatch(t *testing.T) {
 					{host: "127.0.0.1:80", weight: 10},
 					{host: "127.0.0.1:8080", weight: 20},
 				},
-				entities: []string{
-					"upstream;1",
-					"upstream;2",
+				entities: map[string]struct{}{
+					"upstream;1": {},
+					"upstream;2": {},
 				},
 				args: nil,
 			},

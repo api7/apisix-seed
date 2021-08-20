@@ -1,0 +1,3 @@
+host:
+  - "http://console.nacos.io:80"
+prefix: ~

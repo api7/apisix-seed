@@ -11,12 +11,13 @@ var (
 	Discoveries = make(map[string]Discover)
 )
 
-type Discover func(disConfig interface{}) Discoverer
+type Discover func(disConfig interface{}) (Discoverer, error)
 
 // Discoverer defines the component that interact nacos, consul and so on
 type Discoverer interface {
 	Stop()
 	Query(*comm.Query) error
+	Update(*comm.Update) error
 	Watch() chan *comm.Watch
 }
 
@@ -29,8 +30,8 @@ type Node struct {
 // Service defines the service information for discoverer
 type Service struct {
 	name     string
-	nodes    []Node   // nodes are the upstream machines of the service
-	entities []string // entities are the upstreams/services/routes that use the service
+	nodes    []Node              // nodes are the upstream machines of the service
+	entities map[string]struct{} // entities are the upstreams/services/routes that use the service
 	args     map[string]string
 }
 
@@ -45,7 +46,7 @@ func (s *Service) EncodeNodes() utils.Message {
 
 func (s *Service) EncodeEntities() utils.Message {
 	msg := make(utils.Message, 0, len(s.entities))
-	for _, entity := range s.entities {
+	for entity := range s.entities {
 		msg.Add("entity", entity)
 	}
 	return msg
@@ -53,13 +54,13 @@ func (s *Service) EncodeEntities() utils.Message {
 
 // EncodeWatch encodes a service to the watch message
 func (s *Service) EncodeWatch() (*comm.Watch, error) {
-	header, err := comm.NewWatchHeader([]string{utils.EventUpdate, s.name})
-	if err != nil {
-		return nil, err
-	}
+	headerVals := []string{utils.EventUpdate, s.name}
 	entities := s.EncodeEntities()
 	nodes := s.EncodeNodes()
 
-	watch := comm.NewWatch(header, entities, nodes)
+	watch, err := comm.NewWatch(headerVals, entities, nodes)
+	if err != nil {
+		return nil, err
+	}
 	return &watch, nil
 }

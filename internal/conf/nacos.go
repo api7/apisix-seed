@@ -25,9 +25,8 @@ const schema = `
     },
     "Prefix": {
       "type": "string",
-      "pattern": "^[\\/a-zA-Z0-9-_.]+$",
-      "maxLength": 100,
-      "default": "/nacos/v1/"
+      "pattern": "^[\\/a-zA-Z0-9-_.]*$",
+      "maxLength": 100
     },
     "Weight": {
       "type": "integer",
@@ -78,7 +77,6 @@ func nacosBuilder(content []byte) (interface{}, error) {
 	// go jsonschema lib doesn't support setting default values
 	// so we need to set for some default fields ourselves.
 	nacos := Nacos{
-		Prefix: "/nacos/v1/",
 		Weight: 100,
 		Timeout: timeout{
 			Connect: 2000,

@@ -1,13 +1,11 @@
 package comm
 
 import (
-	"errors"
-
 	"github.com/api7/apisix-seed/internal/utils"
 	"go.uber.org/zap/buffer"
 )
 
-var watchHeader = [2]string{"event", "service"}
+var watchHeader = []string{"event", "service"}
 
 type Watch struct {
 	header   utils.Message
@@ -15,24 +13,17 @@ type Watch struct {
 	nodes    utils.Message
 }
 
-func NewWatchHeader(values []string) (utils.Message, error) {
-	if len(values) != len(watchHeader) {
-		return nil, errors.New("incorrect watch header values")
+func NewWatch(values []string, entities, nodes utils.Message) (Watch, error) {
+	header, err := newHeader(values, watchHeader)
+	if err != nil {
+		return Watch{}, err
 	}
 
-	msg := make(utils.Message, 0, len(watchHeader))
-	for idx, key := range watchHeader {
-		msg.Add(key, values[idx])
-	}
-	return msg, nil
-}
-
-func NewWatch(header, entities, nodes utils.Message) Watch {
 	return Watch{
 		header:   header,
 		entities: entities,
 		nodes:    nodes,
-	}
+	}, nil
 }
 
 func (msg *Watch) String() string {
