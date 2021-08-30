@@ -21,8 +21,8 @@ func TestServiceEncodeWatch(t *testing.T) {
 					{host: "127.0.0.1:8080", weight: 20},
 				},
 				entities: map[string]struct{}{
-					"upstream;1": {},
 					"upstream;2": {},
+					"upstream;1": {},
 				},
 				args: nil,
 			},
@@ -33,8 +33,7 @@ key: entity, value: upstream;2
 key: node, value: 127.0.0.1:80
 key: weight, value: 10
 key: node, value: 127.0.0.1:8080
-key: weight, value: 20`,
-		},
+key: weight, value: 20`},
 	}
 
 	for _, tc := range tests {

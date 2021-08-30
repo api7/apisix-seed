@@ -1,6 +1,7 @@
 package discoverer
 
 import (
+	"sort"
 	"strconv"
 
 	"github.com/api7/apisix-seed/internal/core/comm"
@@ -49,6 +50,10 @@ func (s *Service) EncodeEntities() utils.Message {
 	for entity := range s.entities {
 		msg.Add("entity", entity)
 	}
+	sort.Slice(msg, func(i, j int) bool {
+		return msg[i].Value < msg[j].Value
+	})
+
 	return msg
 }
 
