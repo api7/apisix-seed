@@ -5,7 +5,6 @@ go 1.16
 require (
 	github.com/nacos-group/nacos-sdk-go v1.0.8
 	github.com/smartystreets/goconvey v1.6.4 // indirect
-	github.com/sony/sonyflake v1.0.0
 	github.com/stretchr/testify v1.7.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.etcd.io/etcd/client/pkg/v3 v3.5.0

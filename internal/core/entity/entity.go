@@ -2,8 +2,6 @@ package entity
 
 import (
 	"time"
-
-	"github.com/api7/apisix-seed/internal/utils"
 )
 
 type BaseInfo struct {
@@ -16,17 +14,7 @@ func (info *BaseInfo) GetBaseInfo() *BaseInfo {
 	return info
 }
 
-func (info *BaseInfo) Creating() {
-	if info.ID == "" {
-		info.ID = utils.GetFlakeUidStr()
-	}
-	info.CreateTime = time.Now().Unix()
-	info.UpdateTime = time.Now().Unix()
-}
-
-func (info *BaseInfo) Updating(storedInfo *BaseInfo) {
-	info.ID = storedInfo.ID
-	info.CreateTime = storedInfo.CreateTime
+func (info *BaseInfo) Updating() {
 	info.UpdateTime = time.Now().Unix()
 }
 

@@ -107,7 +107,7 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 
 	if setter, ok := storedObj.(entity.BaseInfoSetter); ok {
 		info := setter.GetBaseInfo()
-		info.Updating(info)
+		info.Updating()
 	}
 
 	bs, err := json.Marshal(storedObj)
