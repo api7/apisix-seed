@@ -139,7 +139,7 @@ func TestList(t *testing.T) {
 					Value: `{"Field1","demo1-f1", "Field2":"demo1-f2"}`,
 				},
 			},
-			wantErr: fmt.Errorf("json unmarshal failed\n\tRelated Key:\t\tdemo1-f1\n\tError Description:\t" +
+			wantErr: fmt.Errorf("unmarshal failed\n\tRelated Key:\t\tdemo1-f1\n\tError Description:\t" +
 				"invalid character ',' after object key"),
 		},
 	}
@@ -155,6 +155,7 @@ func TestList(t *testing.T) {
 
 		_, err = store.List()
 		if err != nil {
+			assert.NotNil(t, tc.wantErr, tc.caseDesc)
 			assert.Equal(t, tc.wantErr.Error(), err.Error(), tc.caseDesc)
 			continue
 		}
@@ -319,7 +320,7 @@ func TestStringToObjPtr(t *testing.T) {
 	}, nil)
 	assert.Nil(t, err)
 	rawID, id := "test/1", "1"
-	argStr := `{"namespace_id":"dev", "group_name":"test"}`
+	argStr := `{"discovery_args":{"namespace_id":"dev", "group_name":"test"}}`
 	argInterface, err := s.StringToObjPtr(argStr, rawID)
 	assert.Nil(t, err)
 	arg := argInterface.(*entity.Upstream)

@@ -23,7 +23,7 @@ func TestNodesFormat(t *testing.T) {
 
 	// bind struct
 	var route Route
-	err := json.Unmarshal([]byte(routeStr), &route)
+	err := Unmarshal([]byte(routeStr), &route)
 	assert.Nil(t, err)
 
 	// nodes format
@@ -41,9 +41,7 @@ func TestNodesFormat(t *testing.T) {
 func TestNodesFormatStruct(t *testing.T) {
 	// route data saved in ETCD
 	var route Route
-	route.Uris = []string{"/*"}
 	route.Upstream = &UpstreamDef{}
-	route.Upstream.Type = "roundrobin"
 	var nodes = []*Node{{Host: "127.0.0.1", Port: 80, Weight: 0}}
 	route.Upstream.Nodes = nodes
 
@@ -71,7 +69,7 @@ func TestNodesFormatMap(t *testing.T) {
 
 	// bind struct
 	var route Route
-	err := json.Unmarshal([]byte(routeStr), &route)
+	err := Unmarshal([]byte(routeStr), &route)
 	assert.Nil(t, err)
 
 	// nodes format
@@ -98,7 +96,7 @@ func TestNodesFormatEmptyStruct(t *testing.T) {
 
 	// bind struct
 	var route Route
-	err := json.Unmarshal([]byte(routeStr), &route)
+	err := Unmarshal([]byte(routeStr), &route)
 	assert.Nil(t, err)
 
 	// nodes format
@@ -123,7 +121,7 @@ func TestNodesFormatEmptyMap(t *testing.T) {
 
 	// bind struct
 	var route Route
-	err := json.Unmarshal([]byte(routeStr), &route)
+	err := Unmarshal([]byte(routeStr), &route)
 	assert.Nil(t, err)
 
 	// nodes format
@@ -149,7 +147,7 @@ func TestNodesFormatNoNodes(t *testing.T) {
 
 	// bind struct
 	var route Route
-	err := json.Unmarshal([]byte(routeStr), &route)
+	err := Unmarshal([]byte(routeStr), &route)
 	assert.Nil(t, err)
 
 	// nodes format

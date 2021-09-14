@@ -88,7 +88,7 @@ func (s *GenericStore) Unwatch() {
 	s.cancel()
 }
 
-func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*entity.Node) error {
+func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*entity.Node) (err error) {
 	if key == "" {
 		return fmt.Errorf("key is required")
 	}
@@ -107,12 +107,18 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 
 	if setter, ok := storedObj.(entity.BaseInfoSetter); ok {
 		info := setter.GetBaseInfo()
-		info.Updating()
+		info.Updating(info)
 	}
 
-	bs, err := json.Marshal(storedObj)
+	var bs []byte
+	if aller, ok := storedObj.(entity.Aller); ok {
+		bs, err = entity.Marshal(aller)
+	} else {
+		bs, err = json.Marshal(storedObj)
+	}
+
 	if err != nil {
-		return fmt.Errorf("json marshal failed: %s", err)
+		return fmt.Errorf("marshal failed: %s", err)
 	}
 	if err = s.Stg.Update(ctx, key, string(bs)); err != nil {
 		return err
@@ -134,9 +140,15 @@ func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {
 
 	objPtr := reflect.New(s.opt.ObjType)
 	ret := objPtr.Interface()
-	err := json.Unmarshal([]byte(str), ret)
+
+	var err error
+	if aller, ok := ret.(entity.Aller); ok {
+		err = entity.Unmarshal([]byte(str), aller)
+	} else {
+		err = json.Unmarshal([]byte(str), ret)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("json unmarshal failed\n\tRelated Key:\t\t%s\n\tError Description:\t%s", key, err)
+		return nil, fmt.Errorf("unmarshal failed\n\tRelated Key:\t\t%s\n\tError Description:\t%s", key, err)
 	}
 
 	if setter, ok := ret.(entity.BaseInfoSetter); ok {
