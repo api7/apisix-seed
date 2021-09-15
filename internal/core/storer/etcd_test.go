@@ -18,7 +18,7 @@ func TestEtcdV3(t *testing.T) {
 	// Then comment out the following statement
 	t.SkipNow()
 
-	client, err := New(conf.Etcd{Host: []string{host}})
+	client, err := NewEtcd(conf.Etcd{Host: []string{host}})
 	assert.Nil(t, err, "Test create etcd client")
 
 	testCommon(t, client)
@@ -44,7 +44,7 @@ func testCommon(t *testing.T, client *EtcdV3) {
 		// Get should return the value
 		val, err := client.Get(context.Background(), key)
 		assert.Nil(t, err, "Test key get")
-		assert.Equal(t, val, value, "Test get key value")
+		assert.Equal(t, value, val, "Test get key value")
 
 		// Update the key/value
 		err = client.Update(context.Background(), key, newValue)
@@ -53,7 +53,7 @@ func testCommon(t *testing.T, client *EtcdV3) {
 		// Get should return the new value
 		val, err = client.Get(context.Background(), key)
 		assert.Nil(t, err, "Test key get")
-		assert.Equal(t, val, newValue, "Test get key: new value")
+		assert.Equal(t, newValue, val, "Test get key: new value")
 
 		// Delete the key
 		err = client.Delete(context.Background(), key)
@@ -62,11 +62,11 @@ func testCommon(t *testing.T, client *EtcdV3) {
 		// Delete the non-existing key
 		err = client.Delete(context.Background(), key)
 		wantErr := fmt.Errorf("key: %s is not found", key)
-		assert.Equal(t, err, wantErr, "Test delete non-existing key")
+		assert.Equal(t, wantErr, err, "Test delete non-existing key")
 
 		// Get should fail
 		_, err = client.Get(context.Background(), key)
-		assert.Equal(t, err, wantErr, "Test get non-existing key")
+		assert.Equal(t, wantErr, err, "Test get non-existing key")
 	}
 }
 
@@ -89,9 +89,9 @@ func testList(t *testing.T, client *EtcdV3) {
 		for _, pair := range pairs {
 			switch pair.Key {
 			case firstKey:
-				assert.Equal(t, pair.Value, firstKey)
+				assert.Equal(t, firstKey, pair.Value)
 			case secondKey:
-				assert.Equal(t, pair.Value, secondKey)
+				assert.Equal(t, secondKey, pair.Value)
 			}
 		}
 	}
@@ -102,7 +102,7 @@ func testList(t *testing.T, client *EtcdV3) {
 	// List should fail
 	wantErr := fmt.Errorf("prefix: %s is not found", prefix)
 	pairs, err := client.List(context.Background(), prefix)
-	assert.Equal(t, err, wantErr, "Test list non-existing prefix")
+	assert.Equal(t, wantErr, err, "Test list non-existing prefix")
 	assert.Nil(t, pairs)
 }
 
@@ -137,13 +137,13 @@ func testWatch(t *testing.T, client *EtcdV3) {
 			val := vals[0]
 
 			if eventCount == 0 {
-				assert.Equal(t, val[0], utils.EventAdd)
+				assert.Equal(t, utils.EventAdd, val[0])
 			} else if eventCount == 1 {
-				assert.Equal(t, val[0], utils.EventDelete)
+				assert.Equal(t, utils.EventDelete, val[0])
 			}
 
-			assert.Equal(t, val[1], key)
-			assert.Equal(t, val[2], val)
+			assert.Equal(t, key, val[1])
+			assert.Equal(t, val, val[2])
 
 			eventCount += 1
 			// We received all the events we wanted to check
