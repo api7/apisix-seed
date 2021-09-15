@@ -63,14 +63,14 @@ func TestRoute(t *testing.T) {
 
 	embedElm(reflect.ValueOf(&route), route.All)
 	expectedAll := map[string]interface{}{
-		"uris": `[/*]`,
+		"uris": []interface{}{"/*"},
 		"upstream": map[string]interface{}{
 			"discovery_type": "nacos",
 			"service_name":   "TEST-SERVICE",
 			"nodes":          nodes,
 		},
 	}
-	assert.True(t, reflect.DeepEqual(route.All["upstream"], expectedAll["upstream"]), "Test latest attribute")
+	assert.True(t, reflect.DeepEqual(route.All, expectedAll), "Test latest attribute")
 }
 
 func TestService(t *testing.T) {
@@ -102,5 +102,5 @@ func TestService(t *testing.T) {
 			"nodes":          nodes,
 		},
 	}
-	assert.True(t, reflect.DeepEqual(service.All["upstream"], expectedAll["upstream"]), "Test latest attribute")
+	assert.True(t, reflect.DeepEqual(service.All, expectedAll), "Test latest attribute")
 }
