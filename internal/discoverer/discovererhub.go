@@ -1,0 +1,44 @@
+package discoverer
+
+import (
+	"fmt"
+
+	"github.com/api7/apisix-seed/internal/conf"
+)
+
+var discovererHub = map[string]Discoverer{}
+
+func InitDiscoverer(key string, disConfig interface{}) error {
+	discoverer, err := Discoveries[key](disConfig)
+	if err != nil {
+		return err
+	}
+
+	discovererHub[key] = discoverer
+	return nil
+}
+
+func InitDiscoverers() (err error) {
+	for key, disConfig := range conf.DisConfigs {
+		err = InitDiscoverer(key, disConfig)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func GetDiscoverer(key string) Discoverer {
+	if d, ok := discovererHub[key]; ok {
+		return d
+	}
+	panic(fmt.Sprintf("no discoverer with key: %s", key))
+}
+
+func GetDiscoverers() []Discoverer {
+	discoverers := make([]Discoverer, 0, len(discovererHub))
+	for _, discoverer := range discovererHub {
+		discoverers = append(discoverers, discoverer)
+	}
+	return discoverers
+}
