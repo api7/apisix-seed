@@ -17,7 +17,7 @@ type EtcdV3 struct {
 	timeout time.Duration
 }
 
-func NewEtcd(etcdConf conf.Etcd) (*EtcdV3, error) {
+func NewEtcd(etcdConf *conf.Etcd) (*EtcdV3, error) {
 	timeout := time.Duration(etcdConf.Timeout)
 	s := &EtcdV3{timeout: timeout}
 

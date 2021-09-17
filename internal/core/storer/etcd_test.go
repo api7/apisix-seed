@@ -18,7 +18,7 @@ func TestEtcdV3(t *testing.T) {
 	// Then comment out the following statement
 	t.SkipNow()
 
-	client, err := NewEtcd(conf.Etcd{Host: []string{host}})
+	client, err := NewEtcd(&conf.Etcd{Host: []string{host}})
 	assert.Nil(t, err, "Test create etcd client")
 
 	testCommon(t, client)
