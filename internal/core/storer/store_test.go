@@ -61,7 +61,7 @@ func TestNewGenericStore(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		s, err := NewGenericStore(tc.giveOpt, nil)
+		s, err := NewGenericStore("test", tc.giveOpt, nil)
 		assert.Equal(t, tc.wantErr, err, tc.caseDesc)
 		if err != nil {
 			continue
@@ -150,7 +150,7 @@ func TestList(t *testing.T) {
 			assert.Equal(t, tc.giveOpt.BasePath, args[0], tc.caseDesc)
 		}).Return(tc.giveListRet, tc.giveListErr)
 
-		store, err := NewGenericStore(tc.giveOpt, mStg)
+		store, err := NewGenericStore("test", tc.giveOpt, mStg)
 		assert.Nil(t, err, tc.caseDesc)
 
 		_, err = store.List()
@@ -208,7 +208,7 @@ func TestWatch(t *testing.T) {
 			assert.Equal(t, tc.giveOpt.BasePath, args[0], tc.caseDesc)
 		}).Return(tc.giveWatchCh)
 
-		store, err := NewGenericStore(tc.giveOpt, mStg)
+		store, err := NewGenericStore("test", tc.giveOpt, mStg)
 		assert.Nil(t, err, tc.caseDesc)
 		tc.giveWatchCh <- tc.giveWatch
 		watch := <-store.Watch()
@@ -289,7 +289,7 @@ func TestUpdate(t *testing.T) {
 			assert.NotEqual(t, 0, input.UpdateTime, tc.caseDesc)
 		}).Return(tc.giveErr)
 
-		store, err := NewGenericStore(tc.giveOpt, mStg)
+		store, err := NewGenericStore("test", tc.giveOpt, mStg)
 		assert.Nil(t, err, tc.caseDesc)
 
 		for k, v := range tc.giveCache {
@@ -314,7 +314,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestStringToObjPtr(t *testing.T) {
-	s, err := NewGenericStore(GenericStoreOption{
+	s, err := NewGenericStore("upstream", GenericStoreOption{
 		BasePath: "test",
 		ObjType:  reflect.TypeOf(entity.Upstream{}),
 	}, nil)

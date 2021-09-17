@@ -24,6 +24,7 @@ type GenericStoreOption struct {
 }
 
 type GenericStore struct {
+	Typ string
 	Stg Interface
 
 	cache sync.Map
@@ -32,7 +33,7 @@ type GenericStore struct {
 	cancel context.CancelFunc
 }
 
-func NewGenericStore(opt GenericStoreOption, stg Interface) (*GenericStore, error) {
+func NewGenericStore(typ string, opt GenericStoreOption, stg Interface) (*GenericStore, error) {
 	if opt.BasePath == "" {
 		return nil, fmt.Errorf("base path can not be empty")
 	}
@@ -47,6 +48,7 @@ func NewGenericStore(opt GenericStoreOption, stg Interface) (*GenericStore, erro
 		return nil, fmt.Errorf("object type is invalid")
 	}
 	s := &GenericStore{
+		Typ: typ,
 		Stg: stg,
 		opt: opt,
 	}
