@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/api7/apisix-seed/internal/core/components"
 	"os"
 	"os/signal"
 	"sync"
@@ -38,7 +39,8 @@ func main() {
 	}()
 	wg.Wait()
 
-	// TODO: Init Rewriter
+	rewriter := components.Rewriter{}
+	rewriter.Init()
 	// TODO: Init Watcher
 
 	quit := make(chan os.Signal, 1)
