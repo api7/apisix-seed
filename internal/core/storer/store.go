@@ -56,7 +56,7 @@ func NewGenericStore(typ string, opt GenericStoreOption, stg Interface) (*Generi
 	return s, nil
 }
 
-func (s *GenericStore) List() ([]interface{}, error) {
+func (s *GenericStore) List(filter func(interface{}) bool) ([]interface{}, error) {
 	lc, lcancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer lcancel()
 	ret, err := s.Stg.List(lc, s.opt.BasePath)
@@ -64,14 +64,17 @@ func (s *GenericStore) List() ([]interface{}, error) {
 		return nil, err
 	}
 
-	objPtrs := make([]interface{}, len(ret))
+	objPtrs := make([]interface{}, 0)
 	for i := range ret {
 		objPtr, err := s.StringToObjPtr(ret[i].Value, ret[i].Key)
 		if err != nil {
 			return nil, err
 		}
 
-		objPtrs[i] = objPtr
+		if filter == nil || filter(objPtr) {
+			s.Store(ret[i].Key, objPtr)
+			objPtrs = append(objPtrs, objPtr)
+		}
 	}
 
 	return objPtrs, nil
@@ -134,7 +137,7 @@ func (s *GenericStore) Store(key string, objPtr interface{}) (interface{}, bool)
 }
 
 func (s *GenericStore) Delete(key string) (interface{}, bool) {
-	return s.cache.LoadAndDelete(key)
+	return s.cache.LoadAndDelete(s.key(key))
 }
 
 func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {

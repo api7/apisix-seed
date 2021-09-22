@@ -153,7 +153,7 @@ func TestList(t *testing.T) {
 		store, err := NewGenericStore("test", tc.giveOpt, mStg)
 		assert.Nil(t, err, tc.caseDesc)
 
-		_, err = store.List()
+		_, err = store.List(nil)
 		if err != nil {
 			assert.NotNil(t, tc.wantErr, tc.caseDesc)
 			assert.Equal(t, tc.wantErr.Error(), err.Error(), tc.caseDesc)
