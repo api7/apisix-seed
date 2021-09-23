@@ -85,7 +85,7 @@ func TestServiceUpdate(t *testing.T) {
 		"discovery_type": "nacos"
 	}
 }`,
-			wantResult: true,
+			wantResult: false,
 		},
 		{
 			caseDesc: "Test Update: args update",
@@ -121,7 +121,7 @@ func TestServiceUpdate(t *testing.T) {
 	}
 }
 
-func TestDiscoveryUpdate(t *testing.T) {
+func TestServiceReplace(t *testing.T) {
 	tests := []struct {
 		caseDesc     string
 		giveRoute    string
@@ -129,7 +129,7 @@ func TestDiscoveryUpdate(t *testing.T) {
 		wantResult   bool
 	}{
 		{
-			caseDesc: "Test Discovery Update: no update",
+			caseDesc: "Test Replace: no replace",
 			giveRoute: `{
 	"upstream": {	
 		"service_name": "test",
@@ -144,8 +144,25 @@ func TestDiscoveryUpdate(t *testing.T) {
 }`,
 			wantResult: false,
 		},
+
 		{
-			caseDesc: "Test Discovery Update: no update",
+			caseDesc: "Test Replace: service name update",
+			giveRoute: `{
+	"upstream": {	
+		"service_name": "test",
+		"discovery_type": "nacos"
+	}
+}`,
+			giveNewRoute: `{
+	"upstream": {	
+		"service_name": "test1",
+		"discovery_type": "nacos"
+	}
+}`,
+			wantResult: true,
+		},
+		{
+			caseDesc: "Test Replace: discovery type update",
 			giveRoute: `{
 	"upstream": {	
 		"service_name": "test",
@@ -171,6 +188,6 @@ func TestDiscoveryUpdate(t *testing.T) {
 		err = json.Unmarshal([]byte(tc.giveNewRoute), &newRoute)
 		assert.Nil(t, err)
 
-		assert.Equal(t, tc.wantResult, DiscoveryUpdate(&route, &newRoute), tc.caseDesc)
+		assert.Equal(t, tc.wantResult, ServiceReplace(&route, &newRoute), tc.caseDesc)
 	}
 }

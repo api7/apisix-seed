@@ -30,8 +30,8 @@ func ServiceUpdate(obj, newObj interface{}) bool {
 	uf := getUpstreamDef(obj)
 	newUf := getUpstreamDef(newObj)
 
-	if uf.ServiceName != newUf.ServiceName && uf.DiscoveryType == newUf.DiscoveryType {
-		return true
+	if uf.ServiceName != newUf.ServiceName || uf.DiscoveryType != newUf.DiscoveryType {
+		return false
 	}
 
 	// Two pointers are equal only when they are both nil
@@ -45,9 +45,9 @@ func ServiceUpdate(obj, newObj interface{}) bool {
 	return false
 }
 
-func DiscoveryUpdate(obj, newObj interface{}) bool {
+func ServiceReplace(obj, newObj interface{}) bool {
 	uf := getUpstreamDef(obj)
 	newUf := getUpstreamDef(newObj)
 
-	return uf.DiscoveryType != newUf.DiscoveryType
+	return uf.ServiceName != newUf.ServiceName || uf.DiscoveryType != newUf.DiscoveryType
 }
