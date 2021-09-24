@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/api7/apisix-seed/internal/conf"
+	"github.com/api7/apisix-seed/internal/core/components"
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
 )
@@ -38,7 +39,8 @@ func main() {
 	}()
 	wg.Wait()
 
-	// TODO: Init Rewriter
+	rewriter := components.Rewriter{}
+	rewriter.Init()
 	// TODO: Init Watcher
 
 	quit := make(chan os.Signal, 1)

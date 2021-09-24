@@ -3,6 +3,7 @@ package discoverer
 import (
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/utils"
@@ -68,4 +69,13 @@ func (s *Service) EncodeWatch() (*comm.Watch, error) {
 		return nil, err
 	}
 	return &watch, nil
+}
+
+func EncodeEntityID(entity, id string) string {
+	return entity + ";" + id
+}
+
+func DecodeEntityID(id string) (string, string) {
+	strs := strings.SplitN(id, ";", 2)
+	return strs[0], strs[1]
 }
