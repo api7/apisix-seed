@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/core/entity"
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
@@ -21,28 +22,13 @@ type Rewriter struct {
 
 func (r *Rewriter) Init() {
 	r.ctx, r.cancel = context.WithCancel(context.TODO())
+	// the number of semaphore is referenced to https://github.com/golang/go/blob/go1.17.1/src/cmd/compile/internal/noder/noder.go#L38
 	r.sem = make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
 	// Watch for service updates from Discoverer
 	for _, dis := range discoverer.GetDiscoverers() {
 		ch := dis.Watch()
-		go func() {
-			for {
-				select {
-				case <-r.ctx.Done():
-					return
-				case watch := <-ch:
-					values, entities, nodes, err := watch.Decode()
-					if err != nil {
-						continue
-					}
-
-					if values[0] == utils.EventUpdate {
-						r.update(entities, entity.NodesFormat(nodes).([]*entity.Node))
-					}
-				}
-			}
-		}()
+		go r.watch(ch)
 	}
 }
 
@@ -51,6 +37,24 @@ func (r *Rewriter) Close() {
 
 	for _, dis := range discoverer.GetDiscoverers() {
 		dis.Stop()
+	}
+}
+
+func (r *Rewriter) watch(ch chan *comm.Watch) {
+	for {
+		select {
+		case <-r.ctx.Done():
+			return
+		case watch := <-ch:
+			values, entities, nodes, err := watch.Decode()
+			if err != nil {
+				continue
+			}
+
+			if values[0] == utils.EventUpdate {
+				r.update(entities, entity.NodesFormat(nodes).([]*entity.Node))
+			}
+		}
 	}
 }
 
@@ -66,18 +70,20 @@ func (r *Rewriter) update(entities []string, nodes []*entity.Node) {
 			case <-r.ctx.Done():
 				return
 			case r.sem <- struct{}{}:
-				go func(key string) {
-					defer func() {
-						<-r.sem
-						wg.Done()
-					}()
-
-					_ = storer.GetStore(hubKey).UpdateNodes(r.ctx, key, nodes)
-				}(key)
+				go r.write(key, hubKey, nodes, &wg)
 			}
 		}
 	}
 	wg.Wait()
+}
+
+func (r *Rewriter) write(key string, hubKey storer.HubKey, nodes []*entity.Node, wg *sync.WaitGroup) {
+	defer func() {
+		<-r.sem
+		wg.Done()
+	}()
+
+	_ = storer.GetStore(hubKey).UpdateNodes(r.ctx, key, nodes)
 }
 
 // Divide the different types of entities

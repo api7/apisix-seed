@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/api7/apisix-seed/internal/core/components"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
 	"github.com/api7/apisix-seed/internal/conf"
+	"github.com/api7/apisix-seed/internal/core/components"
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
 )
