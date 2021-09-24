@@ -133,7 +133,11 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 }
 
 func (s *GenericStore) Store(key string, objPtr interface{}) (interface{}, bool) {
-	return s.cache.LoadOrStore(s.key(key), objPtr)
+	oldObj, ok := s.cache.LoadOrStore(s.key(key), objPtr)
+	if ok {
+		s.cache.Store(s.key(key), objPtr)
+	}
+	return oldObj, ok
 }
 
 func (s *GenericStore) Delete(key string) (interface{}, bool) {

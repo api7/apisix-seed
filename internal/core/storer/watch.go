@@ -41,7 +41,7 @@ func (msg *Watch) Add(event, key, value string) error {
 		return errors.New(err)
 	}
 
-	h := make(utils.Message, len(eventHeader))
+	h := make(utils.Message, 0, len(eventHeader))
 	vals := []string{event, key, value}
 
 	for i := range eventHeader {
