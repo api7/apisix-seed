@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/api7/apisix-seed/internal/conf"
+	"github.com/api7/apisix-seed/internal/log"
 )
 
 var discovererHub = map[string]Discoverer{}
@@ -11,6 +12,7 @@ var discovererHub = map[string]Discoverer{}
 func InitDiscoverer(key string, disConfig interface{}) error {
 	discoverer, err := Discoveries[key](disConfig)
 	if err != nil {
+		log.Errorf("New %s Discoverer err: %s", key, err)
 		return err
 	}
 

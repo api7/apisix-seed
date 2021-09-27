@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/api7/apisix-seed/internal/core/entity"
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
@@ -35,9 +36,11 @@ type GenericStore struct {
 
 func NewGenericStore(typ string, opt GenericStoreOption, stg Interface) (*GenericStore, error) {
 	if opt.BasePath == "" {
+		log.Error("base path empty")
 		return nil, fmt.Errorf("base path can not be empty")
 	}
 	if opt.ObjType == nil {
+		log.Error("object type is nil")
 		return nil, fmt.Errorf("object type can not be nil")
 	}
 
@@ -45,6 +48,7 @@ func NewGenericStore(typ string, opt GenericStoreOption, stg Interface) (*Generi
 		opt.ObjType = opt.ObjType.Elem()
 	}
 	if opt.ObjType.Kind() != reflect.Struct {
+		log.Error("object type is invalid")
 		return nil, fmt.Errorf("object type is invalid")
 	}
 	s := &GenericStore{
@@ -100,6 +104,7 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 
 	storedObj, ok := s.cache.Load(key)
 	if !ok {
+		log.Warnf("key: %s is not found", key)
 		return fmt.Errorf("key: %s is not found", key)
 	}
 
@@ -107,7 +112,8 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 	if setter, ok := storedObj.(entity.NodesSetter); ok {
 		setter.SetNodes(nodes)
 	} else {
-		return fmt.Errorf("obj can't set nodes")
+		log.Warn("object can't set nodes")
+		return fmt.Errorf("object can't set nodes")
 	}
 
 	if setter, ok := storedObj.(entity.BaseInfoSetter); ok {
@@ -123,6 +129,7 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 	}
 
 	if err != nil {
+		log.Errorf("json marshal failed: %s", err)
 		return fmt.Errorf("marshal failed: %s", err)
 	}
 	if err = s.Stg.Update(ctx, key, string(bs)); err != nil {
@@ -133,7 +140,11 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 }
 
 func (s *GenericStore) Store(key string, objPtr interface{}) (interface{}, bool) {
-	return s.cache.LoadOrStore(s.key(key), objPtr)
+	oldObj, ok := s.cache.LoadOrStore(s.key(key), objPtr)
+	if ok {
+		s.cache.Store(s.key(key), objPtr)
+	}
+	return oldObj, ok
 }
 
 func (s *GenericStore) Delete(key string) (interface{}, bool) {
@@ -153,6 +164,7 @@ func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {
 		err = json.Unmarshal([]byte(str), ret)
 	}
 	if err != nil {
+		log.Errorf("json unmarshal failed: %s", err)
 		return nil, fmt.Errorf("unmarshal failed\n\tRelated Key:\t\t%s\n\tError Description:\t%s", key, err)
 	}
 
