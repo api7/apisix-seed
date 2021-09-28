@@ -6,11 +6,6 @@ var (
 
 type Type int8
 
-const (
-	AccessLog Type = iota - 1
-	ErrorLog
-)
-
 type emptyLog struct {
 }
 

@@ -16,40 +16,26 @@ func init() {
 }
 
 func InitLogger() {
-	logger = GetLogger(ErrorLog)
+	logger = GetLogger()
 }
 
-func GetLogger(logType Type) *zap.SugaredLogger {
-	writeSyncer := fileWriter(logType)
-	encoder := getEncoder(logType)
-	logLevel := zapcore.InfoLevel
-	if logType == ErrorLog {
-		logLevel = zapcore.ErrorLevel
-	}
+func GetLogger() *zap.SugaredLogger {
+	// standard output
+	writeSyncer := zapcore.Lock(os.Stderr)
+	encoder := getEncoder()
+	logLevel := zapcore.ErrorLevel
 	core := zapcore.NewCore(encoder, writeSyncer, logLevel)
 
 	zapLogger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))
 	return zapLogger.Sugar()
 }
 
-func getEncoder(logType Type) zapcore.Encoder {
+func getEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	if logType == AccessLog {
-		encoderConfig.LevelKey = zapcore.OmitKey
-	}
-
 	return zapcore.NewConsoleEncoder(encoderConfig)
-}
-
-func fileWriter(logType Type) zapcore.WriteSyncer {
-	// standard output
-	if logType == ErrorLog {
-		return zapcore.Lock(os.Stderr)
-	}
-	return zapcore.Lock(os.Stdout)
 }
 
 func getZapFields(logger *zap.SugaredLogger, fields []interface{}) *zap.SugaredLogger {
