@@ -271,7 +271,7 @@ func TestUpdate(t *testing.T) {
 				"test/test1": &TestStruct{},
 			},
 			giveKey: "test1",
-			wantErr: fmt.Errorf("obj can't set nodes"),
+			wantErr: fmt.Errorf("object can't set nodes"),
 		},
 	}
 

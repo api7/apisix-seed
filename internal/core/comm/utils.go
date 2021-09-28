@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
 func headerCheck(header utils.Message, needHeader []string) error {
 	if len(header) < len(needHeader) {
+		log.Error("incorrect message header format")
 		return errors.New("incorrect message header format")
 	}
 
@@ -16,6 +18,7 @@ func headerCheck(header utils.Message, needHeader []string) error {
 	for idx, check := range needHeader {
 		if header[idx].Key != check {
 			err := fmt.Sprintf("incorrect header part %d: give %s, require %s", idx+1, header[idx].Key, check)
+			log.Error(err)
 			return errors.New(err)
 		}
 	}
@@ -25,6 +28,7 @@ func headerCheck(header utils.Message, needHeader []string) error {
 	case utils.EventAdd, utils.EventUpdate, utils.EventDelete:
 	default:
 		err := fmt.Sprintf("incorrect header event: %s", event)
+		log.Error(err)
 		return errors.New(err)
 	}
 
@@ -33,6 +37,7 @@ func headerCheck(header utils.Message, needHeader []string) error {
 
 func newHeader(values, needHeader []string) (utils.Message, error) {
 	if len(values) != len(needHeader) {
+		log.Error("incorrect header values")
 		return nil, errors.New("incorrect header values")
 	}
 

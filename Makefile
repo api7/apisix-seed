@@ -6,7 +6,7 @@ lint:
 
 .PHONY: test
 test:
-	go test -race -cover -coverprofile=coverage.txt ./...
+	ENV=test go test -race -cover -coverprofile=coverage.txt ./...
 
 .PHONY: help
 help:

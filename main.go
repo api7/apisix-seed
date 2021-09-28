@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,10 +10,12 @@ import (
 	"github.com/api7/apisix-seed/internal/core/components"
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
+	"github.com/api7/apisix-seed/internal/log"
 )
 
 func main() {
 	conf.InitConf()
+	log.InitLogger()
 
 	etcdClient, err := storer.NewEtcd(conf.ETCDConfig)
 	if err != nil {
@@ -50,5 +51,5 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-quit
-	fmt.Printf("APISIX-Seed receive %s and start shutting down\n", sig.String())
+	log.Infof("APISIX-Seed receive %s and start shutting down\n", sig.String())
 }
