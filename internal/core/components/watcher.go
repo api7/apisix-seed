@@ -68,6 +68,7 @@ func (w *Watcher) handleQuery(objPtr interface{}, typ string, wg *sync.WaitGroup
 	queer := objPtr.(entity.Queer)
 	query, err := encodeQuery(utils.EventAdd, typ, queer)
 	if err != nil {
+		log.Warnf("Watcher encode query message error: %s", err)
 		return
 	}
 
@@ -110,38 +111,47 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 	switch val[0] {
 	case utils.EventAdd:
 		objPtr, err := s.StringToObjPtr(val[2], val[1])
-		if err != nil || !entity.ServiceFilter(objPtr) {
+		if err != nil {
+			log.Warnf("value string error: %s", err)
 			return
 		}
+		if !entity.ServiceFilter(objPtr) {
+			return
+		}
+		entityID := discoverer.EncodeEntityID(s.Typ, val[1])
 		queer := objPtr.(entity.Queer)
 
 		oldObjPtr, ok := s.Store(val[1], objPtr)
 		if !ok {
 			// Obtains a new entity with service information
-			log.Info("Watcher obtains a new entity with service information")
+			log.Infof("Watcher obtains a new entity %s with service information", entityID)
 			query, err := encodeQuery(utils.EventAdd, s.Typ, queer)
 			if err != nil {
+				log.Warnf("Watcher encode query message error: %s", err)
 				return
 			}
 			_ = discoverer.GetDiscoverer(queer.GetType()).Query(query)
 		} else if entity.ServiceUpdate(oldObjPtr, objPtr) {
 			// Updates the service information of existing entity
-			log.Info("Watcher updates the service information of existing entity")
+			log.Infof("Watcher updates the service information of existing entity %s", entityID)
 			update, err := encodeUpdate(oldObjPtr.(entity.Queer), queer)
 			if err != nil {
+				log.Warnf("Watcher encode update message error: %s", err)
 				return
 			}
 			_ = discoverer.GetDiscoverer(queer.GetType()).Update(update)
 		} else if entity.ServiceReplace(oldObjPtr, objPtr) {
 			// Replaces the service information of existing entity
-			log.Info("Watcher replaces the service information of existing entity")
+			log.Infof("Watcher replaces the service information of existing entity %s", entityID)
 			oldQueer := oldObjPtr.(entity.Queer)
 			del, err := encodeQuery(utils.EventDelete, s.Typ, oldQueer)
 			if err != nil {
+				log.Warnf("Watcher encode query message error: %s", err)
 				return
 			}
 			add, err := encodeQuery(utils.EventAdd, s.Typ, queer)
 			if err != nil {
+				log.Warnf("Watcher encode query message error: %s", err)
 				return
 			}
 
@@ -151,11 +161,13 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 	case utils.EventDelete:
 		objPtr, ok := s.Delete(val[1])
 		if ok {
+			entityID := discoverer.EncodeEntityID(s.Typ, val[1])
 			// Deletes an existing entity
-			log.Info("Watcher deletes an existing entity")
+			log.Infof("Watcher deletes an existing entity %s", entityID)
 			queer := objPtr.(entity.Queer)
 			query, err := encodeQuery(utils.EventDelete, s.Typ, queer)
 			if err != nil {
+				log.Warnf("Watcher encode query message error: %s", err)
 				return
 			}
 			_ = discoverer.GetDiscoverer(queer.GetType()).Query(query)
@@ -170,7 +182,6 @@ func encodeQuery(event, typ string, queer entity.Queer) (*comm.Query, error) {
 	headerVals := []string{event, entityID, service}
 	query, err := comm.NewQuery(headerVals, args)
 	if err != nil {
-		log.Error("Watcher encode query message error")
 		return nil, err
 	}
 
@@ -184,7 +195,6 @@ func encodeUpdate(oldQueer, newQueer entity.Queer) (*comm.Update, error) {
 	headerVals := []string{utils.EventUpdate, service}
 	update, err := comm.NewUpdate(headerVals, args, newArgs)
 	if err != nil {
-		log.Error("Watcher encode update message error")
 		return nil, err
 	}
 
