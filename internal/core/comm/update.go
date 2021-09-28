@@ -2,6 +2,7 @@ package comm
 
 import (
 	"github.com/api7/apisix-seed/internal/utils"
+	"go.uber.org/zap/buffer"
 )
 
 var updateHeader = []string{"event", "service"}
@@ -62,4 +63,18 @@ func (msg *Update) Decode() ([]string, map[string]string, map[string]string, err
 	}
 
 	return msgValues, msgOldArgs, msgNewArgs, nil
+}
+
+func (msg *Update) String() string {
+	msgString := buffer.Buffer{}
+
+	msgs := []utils.Message{msg.header, msg.oldArgs, msg.newArgs}
+	for i, msg := range msgs {
+		str := msg.String()
+		if i != 0 {
+			msgString.AppendString("\n")
+		}
+		msgString.AppendString(str)
+	}
+	return msgString.String()
 }

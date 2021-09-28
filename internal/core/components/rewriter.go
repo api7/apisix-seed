@@ -34,6 +34,7 @@ func (r *Rewriter) Init() {
 }
 
 func (r *Rewriter) Close() {
+	log.Info("Rewriter close")
 	r.cancel()
 
 	for _, dis := range discoverer.GetDiscoverers() {
@@ -54,7 +55,7 @@ func (r *Rewriter) watch(ch chan *comm.Watch) {
 			}
 
 			if values[0] == utils.EventUpdate {
-				log.Info("Rewriter update the service information of entities")
+				log.Infof("Rewriter update the service information of entities: %s", watch.String())
 				r.update(entities, entity.NodesFormat(nodes).([]*entity.Node))
 			}
 		}

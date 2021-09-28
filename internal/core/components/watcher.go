@@ -9,6 +9,7 @@ import (
 	"github.com/api7/apisix-seed/internal/core/entity"
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
@@ -70,6 +71,7 @@ func (w *Watcher) handleQuery(objPtr interface{}, typ string, wg *sync.WaitGroup
 		return
 	}
 
+	log.Infof("Watcher query: %s", query.String())
 	_ = discoverer.GetDiscoverer(queer.GetType()).Query(query)
 }
 
@@ -83,6 +85,7 @@ func (w *Watcher) handleWatch(s *storer.GenericStore) {
 		case watch := <-ch:
 			values, err := watch.Decode()
 			if err != nil {
+				log.Warnf("Watcher decode watch message error: %s", err)
 				continue
 			}
 
@@ -103,6 +106,7 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 		wg.Done()
 	}()
 
+	log.Infof("Watcher handle %s event: key=%s value=%s", val[0], val[1], val[2])
 	switch val[0] {
 	case utils.EventAdd:
 		objPtr, err := s.StringToObjPtr(val[2], val[1])
@@ -114,6 +118,7 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 		oldObjPtr, ok := s.Store(val[1], objPtr)
 		if !ok {
 			// Obtains a new entity with service information
+			log.Info("Watcher obtains a new entity with service information")
 			query, err := encodeQuery(utils.EventAdd, s.Typ, queer)
 			if err != nil {
 				return
@@ -121,6 +126,7 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 			_ = discoverer.GetDiscoverer(queer.GetType()).Query(query)
 		} else if entity.ServiceUpdate(oldObjPtr, objPtr) {
 			// Updates the service information of existing entity
+			log.Info("Watcher updates the service information of existing entity")
 			update, err := encodeUpdate(oldObjPtr.(entity.Queer), queer)
 			if err != nil {
 				return
@@ -128,6 +134,7 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 			_ = discoverer.GetDiscoverer(queer.GetType()).Update(update)
 		} else if entity.ServiceReplace(oldObjPtr, objPtr) {
 			// Replaces the service information of existing entity
+			log.Info("Watcher replaces the service information of existing entity")
 			oldQueer := oldObjPtr.(entity.Queer)
 			del, err := encodeQuery(utils.EventDelete, s.Typ, oldQueer)
 			if err != nil {
@@ -145,6 +152,7 @@ func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.Generi
 		objPtr, ok := s.Delete(val[1])
 		if ok {
 			// Deletes an existing entity
+			log.Info("Watcher deletes an existing entity")
 			queer := objPtr.(entity.Queer)
 			query, err := encodeQuery(utils.EventDelete, s.Typ, queer)
 			if err != nil {
@@ -162,6 +170,7 @@ func encodeQuery(event, typ string, queer entity.Queer) (*comm.Query, error) {
 	headerVals := []string{event, entityID, service}
 	query, err := comm.NewQuery(headerVals, args)
 	if err != nil {
+		log.Error("Watcher encode query message error")
 		return nil, err
 	}
 
@@ -175,6 +184,7 @@ func encodeUpdate(oldQueer, newQueer entity.Queer) (*comm.Update, error) {
 	headerVals := []string{utils.EventUpdate, service}
 	update, err := comm.NewUpdate(headerVals, args, newArgs)
 	if err != nil {
+		log.Error("Watcher encode update message error")
 		return nil, err
 	}
 

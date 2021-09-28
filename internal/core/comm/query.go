@@ -2,6 +2,7 @@ package comm
 
 import (
 	"github.com/api7/apisix-seed/internal/utils"
+	"go.uber.org/zap/buffer"
 )
 
 var queryHeader = []string{"event", "entity", "service"}
@@ -49,4 +50,18 @@ func (msg *Query) Decode() ([]string, map[string]string, error) {
 	}
 
 	return msgValues, msgArgs, nil
+}
+
+func (msg *Query) String() string {
+	msgString := buffer.Buffer{}
+
+	msgs := []utils.Message{msg.header, msg.args}
+	for i, msg := range msgs {
+		str := msg.String()
+		if i != 0 {
+			msgString.AppendString("\n")
+		}
+		msgString.AppendString(str)
+	}
+	return msgString.String()
 }
