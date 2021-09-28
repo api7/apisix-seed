@@ -1,6 +1,7 @@
 package storer
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"time"
@@ -10,6 +11,10 @@ import (
 	"github.com/api7/apisix-seed/internal/utils"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
+)
+
+var (
+	DirPlaceholder = []byte("init_dir")
 )
 
 type EtcdV3 struct {
@@ -96,6 +101,11 @@ func (s *EtcdV3) List(ctx context.Context, prefix string) (utils.Message, error)
 	if resp.Count == 0 {
 		log.Warnf("etcd list prefix[%s] is not found", prefix)
 		return nil, fmt.Errorf("etcd list prefix[%s] is not found", prefix)
+	}
+
+	// We use a placeholder to mark a key to be a directory. So we need to skip the hack here.
+	if bytes.Equal(resp.Kvs[0].Value, DirPlaceholder) {
+		resp.Kvs = resp.Kvs[1:]
 	}
 
 	ret := make(utils.Message, 0, len(resp.Kvs))

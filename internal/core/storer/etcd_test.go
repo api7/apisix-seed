@@ -75,10 +75,13 @@ func testList(t *testing.T, client *EtcdV3) {
 	prefix := "testList"
 	firstKey, firstValue := "testList/first", "first"
 	secondKey, secondValue := "testList/second", "second"
+	dirPlaceholderKey, dirPlaceholderValue := "testList/", "init_dir"
 
 	err := client.Create(context.Background(), firstKey, firstValue)
 	assert.Nil(t, err)
 	err = client.Create(context.Background(), secondKey, secondValue)
+	assert.Nil(t, err)
+	err = client.Create(context.Background(), dirPlaceholderKey, dirPlaceholderValue)
 	assert.Nil(t, err)
 
 	for _, parent := range []string{prefix, prefix + "/"} {
@@ -92,6 +95,8 @@ func testList(t *testing.T, client *EtcdV3) {
 				assert.Equal(t, firstKey, pair.Value)
 			case secondKey:
 				assert.Equal(t, secondKey, pair.Value)
+			case dirPlaceholderKey:
+				assert.Fail(t, "should be skipped")
 			}
 		}
 	}
