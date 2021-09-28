@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/api7/apisix-seed/internal/conf"
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -56,6 +57,7 @@ func NewEtcd(etcdConf *conf.Etcd) (*EtcdV3, error) {
 func (s *EtcdV3) init() error {
 	cli, err := clientv3.New(s.conf)
 	if err != nil {
+		log.Errorf("etcd init failed: %s", err)
 		return err
 	}
 
@@ -70,10 +72,12 @@ func (s *EtcdV3) Get(ctx context.Context, key string) (string, error) {
 
 	resp, err := s.client.Get(ctx, key)
 	if err != nil {
-		return "", fmt.Errorf("etcd get failed: %s", err)
+		log.Errorf("etcd get key[%s] failed: %s", key, err)
+		return "", fmt.Errorf("etcd get key[%s] failed: %s", key, err)
 	}
 	if resp.Count == 0 {
-		return "", fmt.Errorf("key: %s is not found", key)
+		log.Warnf("etcd get key[%s] is not found", key)
+		return "", fmt.Errorf("etcd get key[%s] is not found", key)
 	}
 
 	return string(resp.Kvs[0].Value), nil
@@ -86,10 +90,12 @@ func (s *EtcdV3) List(ctx context.Context, prefix string) (utils.Message, error)
 
 	resp, err := s.client.Get(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
-		return nil, fmt.Errorf("etcd list failed: %s", err)
+		log.Errorf("etcd list prefix[%s] failed: %s", prefix, err)
+		return nil, fmt.Errorf("etcd list prefix[%s] failed: %s", prefix, err)
 	}
 	if resp.Count == 0 {
-		return nil, fmt.Errorf("prefix: %s is not found", prefix)
+		log.Warnf("etcd list prefix[%s] is not found", prefix)
+		return nil, fmt.Errorf("etcd list prefix[%s] is not found", prefix)
 	}
 
 	ret := make(utils.Message, 0, len(resp.Kvs))
@@ -107,7 +113,8 @@ func (s *EtcdV3) Create(ctx context.Context, key, value string) error {
 
 	_, err := s.client.Put(ctx, key, value)
 	if err != nil {
-		return fmt.Errorf("etcd put failed: %s", err)
+		log.Errorf("etcd put key[%s] failed: %s", key, err)
+		return fmt.Errorf("etcd put key[%s] failed: %s", key, err)
 	}
 
 	return nil
@@ -120,7 +127,8 @@ func (s *EtcdV3) Update(ctx context.Context, key, value string) error {
 
 	_, err := s.client.Put(ctx, key, value)
 	if err != nil {
-		return fmt.Errorf("etcd put failed: %s", err)
+		log.Errorf("etcd update key[%s] failed: %s", key, err)
+		return fmt.Errorf("etcd update key[%s] failed: %s", key, err)
 	}
 
 	return nil
@@ -133,10 +141,12 @@ func (s *EtcdV3) Delete(ctx context.Context, key string) error {
 
 	resp, err := s.client.Delete(ctx, key)
 	if err != nil {
-		return fmt.Errorf("delete etcd key[%s] failed: %s", key, err)
+		log.Errorf("etcd delete key[%s] failed: %s", key, err)
+		return fmt.Errorf("etcd delete key[%s] failed: %s", key, err)
 	}
 	if resp.Deleted == 0 {
-		return fmt.Errorf("key: %s is not found", key)
+		log.Warnf("etcd delete key[%s] is not found", key)
+		return fmt.Errorf("etcd delete key[%s] is not found", key)
 	}
 
 	return nil
@@ -149,10 +159,12 @@ func (s *EtcdV3) DeletePrefix(ctx context.Context, prefix string) error {
 
 	resp, err := s.client.Delete(ctx, prefix, clientv3.WithPrefix())
 	if err != nil {
-		return fmt.Errorf("delete etcd prefix[%s] failed: %s", prefix, err)
+		log.Errorf("etcd delete prefix[%s] failed: %s", prefix, err)
+		return fmt.Errorf("etcd delete prefix[%s] failed: %s", prefix, err)
 	}
 	if resp.Deleted == 0 {
-		return fmt.Errorf("prefix: %s is not found", prefix)
+		log.Warnf("etcd delete prefix[%s] is not found", prefix)
+		return fmt.Errorf("etcd delete prefix[%s] is not found", prefix)
 	}
 
 	return nil
@@ -182,6 +194,7 @@ func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *Watch {
 				}
 
 				if err := output.Add(typ, key, value); err != nil {
+					log.Warnf("etcd watch key[%s]'s %s event failed: %s", key, typ, err)
 					continue
 				}
 			}
@@ -196,6 +209,7 @@ func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *Watch {
 // Close the client connection
 func (s *EtcdV3) Close() error {
 	if err := s.client.Close(); err != nil {
+		log.Errorf("etcd client close failed: %s", err)
 		return err
 	}
 	return nil

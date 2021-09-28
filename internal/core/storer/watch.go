@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
@@ -38,10 +39,11 @@ func (msg *Watch) Add(event, key, value string) error {
 	case utils.EventAdd, utils.EventUpdate, utils.EventDelete:
 	default:
 		err := fmt.Sprintf("incorrect event: %s", event)
+		log.Error(err)
 		return errors.New(err)
 	}
 
-	h := make(utils.Message, len(eventHeader))
+	h := make(utils.Message, 0, len(eventHeader))
 	vals := []string{event, key, value}
 
 	for i := range eventHeader {

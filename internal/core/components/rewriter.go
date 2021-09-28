@@ -9,6 +9,7 @@ import (
 	"github.com/api7/apisix-seed/internal/core/entity"
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
@@ -48,10 +49,12 @@ func (r *Rewriter) watch(ch chan *comm.Watch) {
 		case watch := <-ch:
 			values, entities, nodes, err := watch.Decode()
 			if err != nil {
+				log.Warnf("Rewriter decode watch message error: %s", err)
 				continue
 			}
 
 			if values[0] == utils.EventUpdate {
+				log.Info("Rewriter update the service information of entities")
 				r.update(entities, entity.NodesFormat(nodes).([]*entity.Node))
 			}
 		}

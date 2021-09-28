@@ -12,6 +12,7 @@ import (
 
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/comm"
+	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
@@ -53,6 +54,7 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 	for _, host := range config.Host {
 		u, err := url.Parse(host)
 		if err != nil {
+			log.Errorf("parse url fail: %s", err)
 			return nil, err
 		}
 
@@ -165,7 +167,9 @@ func (d *NacosDiscoverer) Update(update *comm.Update) error {
 	}
 
 	event, service := values[0], values[1]
+	log.Infof("Nacos update service %s", service)
 	if event != utils.EventUpdate {
+		log.Error("incorrect update event")
 		return errors.New("incorrect update event")
 	}
 	serviceId := serviceID(service, oldArgs)
@@ -220,11 +224,13 @@ func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node,
 		GroupName:   args["group_name"],
 	})
 	if err != nil {
+		log.Errorf("Nacos get service[%s] error: %s", service, err)
 		return nil, err
 	}
 
 	// watch the new service
 	if err := d.subscribe(service, args, client); err != nil {
+		log.Errorf("Nacos subscribe service[%s] error: %s", service, err)
 		return nil, err
 	}
 
@@ -274,6 +280,7 @@ func (d *NacosDiscoverer) watch(serviceId string) func([]model.SubscribeService,
 }
 
 func (d *NacosDiscoverer) subscribe(service string, args map[string]string, client naming_client.INamingClient) error {
+	log.Infof("Nacos subscribe service %s", service)
 	serviceId := serviceID(service, args)
 	param := &vo.SubscribeParam{
 		ServiceName:       service,
@@ -292,6 +299,7 @@ func (d *NacosDiscoverer) subscribe(service string, args map[string]string, clie
 }
 
 func (d *NacosDiscoverer) unsubscribe(service *Service) {
+	log.Infof("Nacos unsubscribe service %s", service.name)
 	serviceId := serviceID(service.name, service.args)
 	param := d.params[serviceId]
 
@@ -314,6 +322,7 @@ func (d *NacosDiscoverer) newClient(namespace string) error {
 			} else if l == 2 {
 				username, password = strs[0], strs[1]
 			} else {
+				log.Error("incorrect auth information")
 				return errors.New("incorrect auth information")
 			}
 		}
@@ -332,12 +341,14 @@ func (d *NacosDiscoverer) newClient(namespace string) error {
 			},
 		)
 		if err != nil {
+			log.Errorf("Nacos new client error: %s", err)
 			return err
 		}
 		newClients = append(newClients, client)
 	}
 
 	d.namingClients[namespace] = newClients
+	log.Info("Successfully create a new Nacos client")
 	return nil
 }
 

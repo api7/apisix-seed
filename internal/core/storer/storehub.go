@@ -6,6 +6,7 @@ import (
 
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/entity"
+	"github.com/api7/apisix-seed/internal/log"
 )
 
 type HubKey string
@@ -21,6 +22,7 @@ var storeHub = map[HubKey]*GenericStore{}
 func InitStore(key HubKey, opt GenericStoreOption, stg Interface) error {
 	s, err := NewGenericStore(string(key), opt, stg)
 	if err != nil {
+		log.Errorf("New %s GenericStore err: %s", key, err)
 		return err
 	}
 
