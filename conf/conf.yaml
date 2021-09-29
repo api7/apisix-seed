@@ -17,7 +17,7 @@ discovery:                       # service discovery center
   nacos:
     host:                        # it's possible to define multiple nacos hosts addresses of the same nacos cluster.
       - "http://127.0.0.1:8848"
-    prefix: /nacos/v1/
+    prefix: /nacos
     weight: 100                  # default weight for node
     timeout:
       connect: 2000              # default 2000ms
