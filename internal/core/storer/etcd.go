@@ -192,6 +192,11 @@ func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *Watch {
 			output := NewWatch(event.Canceled)
 
 			for _, ev := range event.Events {
+				// We use a placeholder to mark a key to be a directory. So we need to skip the hack here.
+				if bytes.Equal(ev.Kv.Value, DirPlaceholder) {
+					continue
+				}
+
 				key := string(ev.Kv.Key)
 				value := string(ev.Kv.Value)
 
