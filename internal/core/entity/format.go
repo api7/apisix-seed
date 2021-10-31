@@ -52,7 +52,7 @@ func NodesFormat(obj interface{}) interface{} {
 		}
 		return nodes
 	case []*Node:
-		log.Infof("nodes type: %v", value)
+		log.Infof("nodes type: %#v", value)
 		return obj
 	case []interface{}:
 		log.Infof("nodes type: %v", value)
