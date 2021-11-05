@@ -128,6 +128,23 @@ func (u *UpstreamDef) SetNodes(nodes []*Node) {
 	u.Nodes = NodesFormat(nodes)
 }
 
+func (u *UpstreamDef) GetArgs() map[string]string {
+	if u.DiscoveryArgs == nil {
+		return nil
+	}
+
+	args := make(map[string]string, 2)
+	args["namespace_id"] = u.DiscoveryArgs.NamespaceID
+	args["group_name"] = u.DiscoveryArgs.GroupName
+
+	return args
+}
+
+type Queer interface {
+	Extract() (string, string, map[string]string)
+	GetType() string
+}
+
 type Upstream struct {
 	BaseInfo
 	UpstreamDef
@@ -140,6 +157,17 @@ func (u *Upstream) GetAll() *map[string]interface{} {
 
 func (u *Upstream) SetNodes(nodes []*Node) {
 	(u.UpstreamDef).SetNodes(nodes)
+}
+
+func (u *Upstream) Extract() (string, string, map[string]string) {
+	id, service := u.ID, u.ServiceName
+	args := (u.UpstreamDef).GetArgs()
+
+	return id, service, args
+}
+
+func (u *Upstream) GetType() string {
+	return u.DiscoveryType
 }
 
 type Route struct {
@@ -156,6 +184,17 @@ func (r *Route) SetNodes(nodes []*Node) {
 	r.Upstream.SetNodes(nodes)
 }
 
+func (r *Route) Extract() (string, string, map[string]string) {
+	id, service := r.ID, r.Upstream.ServiceName
+	args := r.Upstream.GetArgs()
+
+	return id, service, args
+}
+
+func (r *Route) GetType() string {
+	return r.Upstream.DiscoveryType
+}
+
 type Service struct {
 	BaseInfo
 	Upstream *UpstreamDef           `json:"upstream,omitempty"`
@@ -168,4 +207,15 @@ func (s *Service) GetAll() *map[string]interface{} {
 
 func (s *Service) SetNodes(nodes []*Node) {
 	s.Upstream.SetNodes(nodes)
+}
+
+func (s *Service) Extract() (string, string, map[string]string) {
+	id, service := s.ID, s.Upstream.ServiceName
+	args := s.Upstream.GetArgs()
+
+	return id, service, args
+}
+
+func (s *Service) GetType() string {
+	return s.Upstream.DiscoveryType
 }

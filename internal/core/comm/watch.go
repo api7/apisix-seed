@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 	"go.uber.org/zap/buffer"
 )
@@ -54,7 +53,6 @@ func (msg *Watch) Decode() ([]string, []string, map[string]float64, error) {
 		for i := 0; i < len(msg.nodes); i += 2 {
 			weight, err := strconv.ParseFloat(msg.nodes[i+1].Value, 64)
 			if err != nil {
-				log.Error("wrong weight format")
 				return nil, nil, nil, fmt.Errorf("wrong weight format")
 			}
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
+	"go.uber.org/zap/buffer"
 )
 
 var eventHeader = []string{"event", "key", "value"}
@@ -69,4 +70,18 @@ func (msg *Watch) Decode() ([][]string, error) {
 	}
 
 	return msgValues, nil
+}
+
+func (msg *Watch) String() string {
+	msgString := buffer.Buffer{}
+
+	for i, ev := range msg.Events {
+		msg := ev.header
+		str := msg.String()
+		if i != 0 {
+			msgString.AppendString("\n")
+		}
+		msgString.AppendString(str)
+	}
+	return msgString.String()
 }

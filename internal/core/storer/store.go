@@ -164,7 +164,6 @@ func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {
 		err = json.Unmarshal([]byte(str), ret)
 	}
 	if err != nil {
-		log.Errorf("json unmarshal failed: %s", err)
 		return nil, fmt.Errorf("unmarshal failed\n\tRelated Key:\t\t%s\n\tError Description:\t%s", key, err)
 	}
 

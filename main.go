@@ -42,7 +42,10 @@ func main() {
 
 	rewriter := components.Rewriter{}
 	rewriter.Init()
-	// TODO: Init Watcher
+
+	watcher := components.Watcher{}
+	watcher.Init()
+	watcher.Watch()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

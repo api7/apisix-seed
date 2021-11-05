@@ -115,6 +115,7 @@ func testList(t *testing.T, client *EtcdV3) {
 func testWatch(t *testing.T, client *EtcdV3) {
 	prefix := "testWatch"
 	key, value := "testWatch/node", "node"
+	dirPlaceholderKey, dirPlaceholderValue := "testWatch/", "init_dir"
 
 	events := client.Watch(context.Background(), prefix)
 
@@ -126,6 +127,9 @@ func testWatch(t *testing.T, client *EtcdV3) {
 		assert.Nil(t, err)
 
 		err = client.Delete(context.Background(), key)
+		assert.Nil(t, err)
+
+		err = client.Create(context.Background(), dirPlaceholderKey, dirPlaceholderValue)
 		assert.Nil(t, err)
 	}()
 
@@ -145,6 +149,8 @@ func testWatch(t *testing.T, client *EtcdV3) {
 				assert.Equal(t, utils.EventAdd, val[0])
 			} else if eventCount == 1 {
 				assert.Equal(t, utils.EventDelete, val[0])
+			} else if eventCount == 2 {
+				assert.Fail(t, "should be skipped")
 			}
 
 			assert.Equal(t, key, val[1])
@@ -152,7 +158,7 @@ func testWatch(t *testing.T, client *EtcdV3) {
 
 			eventCount += 1
 			// We received all the events we wanted to check
-			if eventCount == 2 {
+			if eventCount == 3 {
 				return
 			}
 		case <-time.After(5 * time.Second):
