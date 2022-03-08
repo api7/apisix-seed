@@ -10,12 +10,6 @@ import (
 var logger *zap.SugaredLogger
 
 func init() {
-	if env := os.Getenv("ENV"); env == "test" {
-		InitLogger()
-	}
-}
-
-func InitLogger() {
 	logger = GetLogger()
 }
 

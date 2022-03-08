@@ -3,6 +3,7 @@ package components
 import (
 	"context"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/api7/apisix-seed/internal/core/comm"
@@ -28,8 +29,8 @@ func (r *Rewriter) Init() {
 
 	// Watch for service updates from Discoverer
 	for _, dis := range discoverer.GetDiscoverers() {
-		ch := dis.Watch()
-		go r.watch(ch)
+		msgCh := dis.Watch()
+		go r.watch(msgCh)
 	}
 }
 
@@ -42,20 +43,24 @@ func (r *Rewriter) Close() {
 	}
 }
 
-func (r *Rewriter) watch(ch chan *comm.Watch) {
+func (r *Rewriter) watch(ch chan *comm.Message) {
 	for {
 		select {
 		case <-r.ctx.Done():
 			return
-		case watch := <-ch:
-			values, entities, nodes, err := watch.Decode()
+		case msg := <-ch:
+			// hand nacos notify message
+			values, entities, nodes, err := msg.Decode()
 			if err != nil {
 				log.Warnf("Rewriter decode watch message error: %s", err)
 				continue
 			}
 
+			if len(nodes) == 0 {
+				continue
+			}
 			if values[0] == utils.EventUpdate {
-				log.Infof("Rewriter update the service information of entities: %s", watch.String())
+				log.Infof("Rewriter update the service information of entities: %s", msg.String())
 				r.update(entities, entity.NodesFormat(nodes).([]*entity.Node))
 			}
 		}
@@ -63,19 +68,15 @@ func (r *Rewriter) watch(ch chan *comm.Watch) {
 }
 
 func (r *Rewriter) update(entities []string, nodes []*entity.Node) {
-	divides := divideEntities(entities)
-
 	wg := sync.WaitGroup{}
 	wg.Add(len(entities))
-	for typ, keys := range divides {
-		hubKey := storer.HubKey(typ)
-		for _, key := range keys {
-			select {
-			case <-r.ctx.Done():
-				return
-			case r.sem <- struct{}{}:
-				go r.write(key, hubKey, nodes, &wg)
-			}
+	for _, entityID := range entities {
+		hubKey := getHubKey(entityID)
+		select {
+		case <-r.ctx.Done():
+			return
+		case r.sem <- struct{}{}:
+			go r.write(entityID, hubKey, nodes, &wg)
 		}
 	}
 	wg.Wait()
@@ -90,12 +91,7 @@ func (r *Rewriter) write(key string, hubKey storer.HubKey, nodes []*entity.Node,
 	_ = storer.GetStore(hubKey).UpdateNodes(r.ctx, key, nodes)
 }
 
-// Divide the different types of entities
-func divideEntities(entities []string) map[string][]string {
-	divides := make(map[string][]string)
-	for _, entityID := range entities {
-		entityTyp, id := discoverer.DecodeEntityID(entityID)
-		divides[entityTyp] = append(divides[entityTyp], id)
-	}
-	return divides
+func getHubKey(entityID string) storer.HubKey {
+	s := strings.Split(entityID, "/")[2]
+	return storer.HubKey(s[:len(s)-1])
 }

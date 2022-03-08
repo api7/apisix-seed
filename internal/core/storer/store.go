@@ -16,7 +16,7 @@ import (
 type Interface interface {
 	List(context.Context, string) (utils.Message, error)
 	Update(context.Context, string, string) error
-	Watch(context.Context, string) <-chan *Watch
+	Watch(context.Context, string) <-chan *StoreEvent
 }
 
 type GenericStoreOption struct {
@@ -84,7 +84,7 @@ func (s *GenericStore) List(filter func(interface{}) bool) ([]interface{}, error
 	return objPtrs, nil
 }
 
-func (s *GenericStore) Watch() <-chan *Watch {
+func (s *GenericStore) Watch() <-chan *StoreEvent {
 	c, cancel := context.WithCancel(context.TODO())
 	s.cancel = cancel
 
@@ -140,20 +140,18 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, key string, nodes []*ent
 }
 
 func (s *GenericStore) Store(key string, objPtr interface{}) (interface{}, bool) {
-	oldObj, ok := s.cache.LoadOrStore(s.key(key), objPtr)
+	oldObj, ok := s.cache.LoadOrStore(key, objPtr)
 	if ok {
-		s.cache.Store(s.key(key), objPtr)
+		s.cache.Store(key, objPtr)
 	}
 	return oldObj, ok
 }
 
 func (s *GenericStore) Delete(key string) (interface{}, bool) {
-	return s.cache.LoadAndDelete(s.key(key))
+	return s.cache.LoadAndDelete(key)
 }
 
 func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {
-	key = s.key(key)
-
 	objPtr := reflect.New(s.opt.ObjType)
 	ret := objPtr.Interface()
 
@@ -175,6 +173,6 @@ func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {
 	return ret, nil
 }
 
-func (s *GenericStore) key(key string) string {
-	return key[len(s.opt.BasePath)+1:]
+func (s *GenericStore) BasePath() string {
+	return s.opt.BasePath
 }

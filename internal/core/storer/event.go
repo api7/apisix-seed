@@ -15,27 +15,27 @@ type Event struct {
 	header utils.Message
 }
 
-type Watch struct {
+type StoreEvent struct {
 	Events   []Event
 	Error    error
 	Canceled bool
 }
 
-func NewWatch(canceled bool) Watch {
+func NewStoreEvent(canceled bool) StoreEvent {
 	var err error = nil
 	if canceled {
-		err = fmt.Errorf("watch channel canceled")
+		err = fmt.Errorf("StoreEvent channel canceled")
 	}
 
-	return Watch{
+	return StoreEvent{
 		Events:   make([]Event, 0),
 		Error:    err,
 		Canceled: canceled,
 	}
 }
 
-func (msg *Watch) Add(event, key, value string) error {
-	// Check watch event
+func (msg *StoreEvent) Add(event, key, value string) error {
+	// Check store event
 	switch event {
 	case utils.EventAdd, utils.EventUpdate, utils.EventDelete:
 	default:
@@ -56,13 +56,13 @@ func (msg *Watch) Add(event, key, value string) error {
 }
 
 // Decode check and extract values from the watch message
-func (msg *Watch) Decode() ([][]string, error) {
+func (msg *StoreEvent) Decode() ([][]string, error) {
 	if len(msg.Events) == 0 {
 		return nil, errors.New("incorrect watch content")
 	}
 
 	msgValues := make([][]string, len(msg.Events))
-	for i, event := range msg.Events {
+	for i, event := range msg.Events { //event: [header, header, header], header-> [{key:event, value:add}, {key:key, value:/apisix/routes/9},{key:value, value:data}]
 		msgValues[i] = make([]string, len(eventHeader))
 		for j, pair := range event.header {
 			msgValues[i][j] = pair.Value
@@ -72,7 +72,7 @@ func (msg *Watch) Decode() ([][]string, error) {
 	return msgValues, nil
 }
 
-func (msg *Watch) String() string {
+func (msg *StoreEvent) String() string {
 	msgString := buffer.Buffer{}
 
 	for i, ev := range msg.Events {

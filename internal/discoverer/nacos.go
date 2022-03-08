@@ -38,13 +38,14 @@ type NacosDiscoverer struct {
 	// nacos naming clients, grouping by authentication information
 	namingClients map[string][]naming_client.INamingClient
 
-	params map[string]*vo.SubscribeParam
-	cache  map[string]*Service
-	mu     sync.Mutex
+	paramMutex sync.Mutex
+	params     map[string]*vo.SubscribeParam
+	cacheMutex sync.Mutex
+	cache      map[string]*Service
 
 	crc hash.Hash32
 
-	watchCh chan *comm.Watch
+	msgCh chan *comm.Message
 }
 
 func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
@@ -79,20 +80,21 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 		weight:        config.Weight,
 		ServerConfigs: serverConfigs,
 		namingClients: make(map[string][]naming_client.INamingClient),
+		paramMutex:    sync.Mutex{},
 		params:        make(map[string]*vo.SubscribeParam),
+		cacheMutex:    sync.Mutex{},
 		cache:         make(map[string]*Service),
-		mu:            sync.Mutex{},
 		crc:           crc32.NewIEEE(),
-		watchCh:       make(chan *comm.Watch, 10),
+		msgCh:         make(chan *comm.Message, 10),
 	}
 	return &discoverer, nil
 }
 
 func (d *NacosDiscoverer) Stop() {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.cacheMutex.Lock()
+	defer d.cacheMutex.Unlock()
 
-	close(d.watchCh)
+	close(d.msgCh)
 
 	// Unsubscribe all services
 	for _, service := range d.cache {
@@ -109,9 +111,11 @@ func (d *NacosDiscoverer) Query(query *comm.Query) error {
 	event, entity, service := values[0], values[1], values[2]
 	serviceId := serviceID(service, args)
 
-	d.mu.Lock()
 	switch event {
 	case utils.EventAdd:
+		d.cacheMutex.Lock()
+		defer d.cacheMutex.Unlock()
+
 		ok := false
 		var cacheService *Service
 		if cacheService, ok = d.cache[serviceId]; ok {
@@ -119,8 +123,6 @@ func (d *NacosDiscoverer) Query(query *comm.Query) error {
 			cacheService.entities[entity] = struct{}{}
 		} else {
 			// fetch new service information
-			d.mu.Unlock()
-
 			nodes, err := d.fetch(service, args)
 			if err != nil {
 				return err
@@ -133,18 +135,17 @@ func (d *NacosDiscoverer) Query(query *comm.Query) error {
 				args:     args,
 			}
 
-			d.mu.Lock()
 			d.cache[serviceId] = cacheService
 		}
 
-		d.mu.Unlock()
-		watch, err := cacheService.EncodeWatch()
+		msg, err := cacheService.NewNotifyMessage()
 		if err != nil {
 			return err
 		}
-		d.watchCh <- watch
+		d.msgCh <- msg
 	case utils.EventDelete:
-		defer d.mu.Unlock()
+		d.cacheMutex.Lock()
+		defer d.cacheMutex.Unlock()
 
 		if cacheService, ok := d.cache[serviceId]; ok {
 			entities := cacheService.entities
@@ -175,10 +176,10 @@ func (d *NacosDiscoverer) Update(update *comm.Update) error {
 	serviceId := serviceID(service, oldArgs)
 	newServiceId := serviceID(service, newArgs)
 
-	d.mu.Lock()
+	d.cacheMutex.Lock()
+	defer d.cacheMutex.Unlock()
 	if cacheService, ok := d.cache[serviceId]; ok {
 		d.unsubscribe(cacheService)
-		d.mu.Unlock()
 
 		nodes, err := d.fetch(service, newArgs)
 		if err != nil {
@@ -187,23 +188,21 @@ func (d *NacosDiscoverer) Update(update *comm.Update) error {
 		cacheService.nodes = nodes
 		cacheService.args = newArgs
 
-		d.mu.Lock()
 		delete(d.cache, serviceId)
 		d.cache[newServiceId] = cacheService
-		d.mu.Unlock()
 
-		watch, err := cacheService.EncodeWatch()
+		msg, err := cacheService.NewNotifyMessage()
 		if err != nil {
 			return err
 		}
-		d.watchCh <- watch
+		d.msgCh <- msg
 	}
 
 	return nil
 }
 
-func (d *NacosDiscoverer) Watch() chan *comm.Watch {
-	return d.watchCh
+func (d *NacosDiscoverer) Watch() chan *comm.Message {
+	return d.msgCh
 }
 
 func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node, error) {
@@ -251,8 +250,8 @@ func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node,
 	return nodes, nil
 }
 
-func (d *NacosDiscoverer) watch(serviceId string) func([]model.SubscribeService, error) {
-	watch := func(services []model.SubscribeService, err error) {
+func (d *NacosDiscoverer) newSubscribeCallback(serviceId string) func([]model.SubscribeService, error) {
+	return func(services []model.SubscribeService, err error) {
 		nodes := make([]Node, len(services))
 		for i, inst := range services {
 			address := fmt.Sprintf("%s:%d", inst.Ip, inst.Port)
@@ -267,16 +266,14 @@ func (d *NacosDiscoverer) watch(serviceId string) func([]model.SubscribeService,
 			}
 		}
 
-		d.mu.Lock()
+		d.cacheMutex.Lock()
 		cacheService := d.cache[serviceId]
 		cacheService.nodes = nodes
-		d.mu.Unlock()
+		d.cacheMutex.Unlock()
 
-		watch, _ := cacheService.EncodeWatch()
-		d.watchCh <- watch
+		msg, _ := cacheService.NewNotifyMessage()
+		d.msgCh <- msg
 	}
-
-	return watch
 }
 
 func (d *NacosDiscoverer) subscribe(service string, args map[string]string, client naming_client.INamingClient) error {
@@ -285,15 +282,15 @@ func (d *NacosDiscoverer) subscribe(service string, args map[string]string, clie
 	param := &vo.SubscribeParam{
 		ServiceName:       service,
 		GroupName:         args["group_name"],
-		SubscribeCallback: d.watch(serviceId),
+		SubscribeCallback: d.newSubscribeCallback(serviceId),
 	}
 
 	// TODO: retry if failed to Subscribe
 	err := client.Subscribe(param)
 	if err == nil {
-		d.mu.Lock()
+		d.paramMutex.Lock()
 		d.params[serviceId] = param
-		d.mu.Unlock()
+		d.paramMutex.Unlock()
 	}
 	return err
 }

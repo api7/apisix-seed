@@ -9,7 +9,7 @@ import (
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
-func TestWatch(t *testing.T) {
+func TestMessage(t *testing.T) {
 	tests := []struct {
 		caseDesc     string
 		giveValues   []string
@@ -43,10 +43,10 @@ func TestWatch(t *testing.T) {
 			nodeMsg.Add("weight", strconv.Itoa(int(weight)))
 		}
 
-		watch, err := NewWatch(tc.giveValues, entityMsg, nodeMsg)
+		msg, err := NewMessage(tc.giveValues, entityMsg, nodeMsg)
 		assert.Nil(t, err, tc.caseDesc)
 
-		values, entities, nodes, err := watch.Decode()
+		values, entities, nodes, err := msg.Decode()
 		assert.Nil(t, err, tc.caseDesc)
 		assert.Equal(t, tc.giveValues, values, tc.caseDesc)
 		assert.Equal(t, tc.giveEntities, entities, tc.caseDesc)

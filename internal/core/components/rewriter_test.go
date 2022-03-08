@@ -34,11 +34,11 @@ func init() {
 func TestRewriter(t *testing.T) {
 	caseDesc := "sanity"
 	giveCache := map[string]interface{}{
-		"test/test1": &TestNodes{},
+		"/prefix/mocks/1": &TestNodes{},
 	}
-	giveKey := "test1"
+	giveKey := "/prefix/mocks/1"
 	giveEntities := make(utils.Message, 0, 1)
-	giveEntities.Add("entity", "mock;test1")
+	giveEntities.Add("entity", "/prefix/mocks/1")
 	giveNodes := make(utils.Message, 0, 2)
 	giveNodes.Add("node", "test.com:80")
 	giveNodes.Add("weight", "10")
@@ -52,10 +52,10 @@ func TestRewriter(t *testing.T) {
 	}
 
 	headerVals := []string{utils.EventUpdate, giveKey}
-	watch, err := comm.NewWatch(headerVals, giveEntities, giveNodes)
+	watch, err := comm.NewMessage(headerVals, giveEntities, giveNodes)
 	assert.Nil(t, err, caseDesc)
 
-	watchCh := make(chan *comm.Watch)
+	watchCh := make(chan *comm.Message)
 	discover := discoverer.GetDiscoverer("mock")
 	mDiscover := discover.(interface{}).(*discoverer.MockInterface)
 	mDiscover.On("Watch").Run(func(args mock.Arguments) {}).Return(watchCh)
@@ -93,7 +93,7 @@ func TestRewriter(t *testing.T) {
 	watchCh <- &watch
 	<-doneCh
 
-	obj, ok := store.Store("test/"+giveKey, nil)
+	obj, ok := store.Store(giveKey, nil)
 	assert.True(t, ok, caseDesc)
 	objTn, ok := obj.(*TestNodes)
 	assert.True(t, ok, caseDesc)
@@ -101,33 +101,5 @@ func TestRewriter(t *testing.T) {
 	assert.Equal(t, len(wantNodes), len(objTn.Nodes), caseDesc)
 	for i := range wantNodes {
 		assert.Equal(t, *wantNodes[i], *objTn.Nodes[i], caseDesc)
-	}
-}
-
-func TestDivideEntities(t *testing.T) {
-	tests := []struct {
-		caseDesc     string
-		giveEntities []string
-		wantDivide   map[string][]string
-	}{
-		{
-			caseDesc:     "empty entities",
-			giveEntities: nil,
-			wantDivide:   map[string][]string{},
-		},
-		{
-			caseDesc:     "normal case",
-			giveEntities: []string{"upstream;1", "route;1"},
-			wantDivide: map[string][]string{
-				"upstream": {"1"},
-				"route":    {"1"},
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		divide := divideEntities(tc.giveEntities)
-		flag := reflect.DeepEqual(divide, tc.wantDivide)
-		assert.True(t, flag, tc.caseDesc)
 	}
 }

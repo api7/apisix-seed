@@ -27,7 +27,7 @@ func (m *MockInterface) Update(update *comm.Update) error {
 	return ret.Error(0)
 }
 
-func (m *MockInterface) Watch() chan *comm.Watch {
+func (m *MockInterface) Watch() chan *comm.Message {
 	ret := m.Called()
-	return ret.Get(0).(chan *comm.Watch)
+	return ret.Get(0).(chan *comm.Message)
 }

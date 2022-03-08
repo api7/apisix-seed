@@ -31,7 +31,7 @@ func TestWatcherInit(t *testing.T) {
 			Value: `{"upstream":{"service_name": "test_service", "discovery_type": "mock"}}`,
 		},
 	}
-	wantValues := []string{utils.EventAdd, "mock;demo1", "test_service"}
+	wantValues := []string{utils.EventAdd, "test/demo1", "test_service"}
 
 	_ = discoverer.InitDiscoverer("mock", nil)
 	discover := discoverer.GetDiscoverer("mock")
@@ -62,7 +62,7 @@ func TestWatcherWatch(t *testing.T) {
 		ObjType:  reflect.TypeOf(entity.Route{}),
 	}
 
-	watchCh := make(chan *storer.Watch)
+	watchCh := make(chan *storer.StoreEvent)
 	mStg := &storer.MockInterface{}
 	mStg.On("Watch", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {}).Return(watchCh)
 
@@ -94,14 +94,14 @@ func TestWatcherWatch(t *testing.T) {
 	giveKey := "test/demo1"
 	giveValue := `{"upstream":{"service_name": "test_service", "discovery_type": "mock"}}`
 
-	watchMsg := storer.NewWatch(false)
+	watchMsg := storer.NewStoreEvent(false)
 	err = watchMsg.Add(giveEvent, giveKey, giveValue)
 	assert.Nil(t, err, caseDesc)
 
 	watchCh <- &watchMsg
 	<-doneCh
 
-	wantValues := []string{utils.EventAdd, "mock;demo1", "test_service"}
+	wantValues := []string{utils.EventAdd, giveKey, "test_service"}
 	values, arg, err := quries[0].Decode()
 	assert.Nil(t, err, caseDesc)
 	assert.Equal(t, wantValues, values, caseDesc)
@@ -115,7 +115,7 @@ func TestWatcherWatch(t *testing.T) {
 			"group_name": "test_group"
 		}
 	}}`
-	watchMsg = storer.NewWatch(false)
+	watchMsg = storer.NewStoreEvent(false)
 	err = watchMsg.Add(giveEvent, giveKey, giveValue)
 	assert.Nil(t, err, caseDesc)
 
@@ -137,7 +137,7 @@ func TestWatcherWatch(t *testing.T) {
 	caseDesc = "Test replace service information"
 	giveValue = `{"upstream":{"service_name": "test_service2", "discovery_type": "mock"}}`
 
-	watchMsg = storer.NewWatch(false)
+	watchMsg = storer.NewStoreEvent(false)
 	err = watchMsg.Add(giveEvent, giveKey, giveValue)
 	assert.Nil(t, err, caseDesc)
 
@@ -145,13 +145,13 @@ func TestWatcherWatch(t *testing.T) {
 	<-doneCh
 	<-doneCh
 
-	wantValues = []string{utils.EventDelete, "mock;demo1", "test_service"}
+	wantValues = []string{utils.EventDelete, giveKey, "test_service"}
 	values, arg, err = quries[1].Decode()
 	assert.Nil(t, err, caseDesc)
 	assert.Equal(t, wantValues, values, caseDesc)
 	assert.Equal(t, wantNewArgs, arg, caseDesc)
 
-	wantValues = []string{utils.EventAdd, "mock;demo1", "test_service2"}
+	wantValues = []string{utils.EventAdd, giveKey, "test_service2"}
 	values, arg, err = quries[2].Decode()
 	assert.Nil(t, err, caseDesc)
 	assert.Equal(t, wantValues, values, caseDesc)
@@ -161,14 +161,14 @@ func TestWatcherWatch(t *testing.T) {
 	giveEvent = utils.EventDelete
 	giveValue = `{"upstream":{"service_name": "test_service2", "discovery_type": "mock"}}`
 
-	watchMsg = storer.NewWatch(false)
+	watchMsg = storer.NewStoreEvent(false)
 	err = watchMsg.Add(giveEvent, giveKey, giveValue)
 	assert.Nil(t, err, caseDesc)
 
 	watchCh <- &watchMsg
 	<-doneCh
 
-	wantValues = []string{utils.EventDelete, "mock;demo1", "test_service2"}
+	wantValues = []string{utils.EventDelete, giveKey, "test_service2"}
 	values, arg, err = quries[3].Decode()
 	assert.Nil(t, err, caseDesc)
 	assert.Equal(t, wantValues, values, caseDesc)
@@ -180,7 +180,7 @@ func TestEncodeQuery(t *testing.T) {
 		caseDesc   string
 		giveEvent  string
 		giveTyp    string
-		giveQueer  entity.Queer
+		giveQueer  entity.Entity
 		wantValues []string
 		wantArgs   map[string]string
 	}{
@@ -196,7 +196,7 @@ func TestEncodeQuery(t *testing.T) {
 					ServiceName: "test",
 				},
 			},
-			wantValues: []string{utils.EventAdd, "upstream;1", "test"},
+			wantValues: []string{utils.EventAdd, "upstream", "test"},
 			wantArgs:   nil,
 		},
 		{
@@ -214,7 +214,7 @@ func TestEncodeQuery(t *testing.T) {
 					},
 				},
 			},
-			wantValues: []string{utils.EventDelete, "upstream;1", "test"},
+			wantValues: []string{utils.EventDelete, "upstream", "test"},
 			wantArgs: map[string]string{
 				"group_name":   "test_group",
 				"namespace_id": "",
@@ -236,8 +236,8 @@ func TestEncodeQuery(t *testing.T) {
 func TestEncodeUpdate(t *testing.T) {
 	tests := []struct {
 		caseDesc    string
-		giveOld     entity.Queer
-		giveNew     entity.Queer
+		giveOld     entity.Entity
+		giveNew     entity.Entity
 		wantValues  []string
 		wantOldArgs map[string]string
 		wantNewArgs map[string]string
