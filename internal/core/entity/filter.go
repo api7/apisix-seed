@@ -20,7 +20,7 @@ func ServiceFilter(obj interface{}) bool {
 		return false
 	}
 
-	if uf.ServiceName != "" && uf.DiscoveryType != "" {
+	if uf.GetServiceName() != "" && uf.GetDiscoveryType() != "" {
 		return true
 	}
 	return false
@@ -30,7 +30,7 @@ func ServiceUpdate(obj, newObj interface{}) bool {
 	uf := getUpstreamDef(obj)
 	newUf := getUpstreamDef(newObj)
 
-	if uf.ServiceName != newUf.ServiceName || uf.DiscoveryType != newUf.DiscoveryType {
+	if uf.GetServiceName() != newUf.GetServiceName() || uf.GetDiscoveryType() != newUf.GetDiscoveryType() {
 		return false
 	}
 
@@ -49,5 +49,5 @@ func ServiceReplace(obj, newObj interface{}) bool {
 	uf := getUpstreamDef(obj)
 	newUf := getUpstreamDef(newObj)
 
-	return uf.ServiceName != newUf.ServiceName || uf.DiscoveryType != newUf.DiscoveryType
+	return uf.GetServiceName() != newUf.GetServiceName() || uf.GetDiscoveryType() != newUf.GetDiscoveryType()
 }

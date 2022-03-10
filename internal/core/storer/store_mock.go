@@ -21,7 +21,7 @@ func (m *MockInterface) Update(_ context.Context, key, value string) error {
 	return ret.Error(0)
 }
 
-func (m *MockInterface) Watch(_ context.Context, key string) <-chan *Watch {
+func (m *MockInterface) Watch(_ context.Context, key string) <-chan *StoreEvent {
 	ret := m.Called(key)
-	return ret.Get(0).(chan *Watch)
+	return ret.Get(0).(chan *StoreEvent)
 }

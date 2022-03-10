@@ -181,15 +181,15 @@ func (s *EtcdV3) DeletePrefix(ctx context.Context, prefix string) error {
 }
 
 // Watch for changes on a key
-func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *Watch {
+func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *StoreEvent {
 	eventChan := s.client.Watch(ctx, key, clientv3.WithPrefix())
-	ch := make(chan *Watch, 1)
+	ch := make(chan *StoreEvent, 1)
 
 	go func() {
 		defer close(ch)
 
 		for event := range eventChan {
-			output := NewWatch(event.Canceled)
+			storeEvent := NewStoreEvent(event.Canceled)
 
 			for _, ev := range event.Events {
 				// We use a placeholder to mark a key to be a directory. So we need to skip the hack here.
@@ -208,13 +208,13 @@ func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *Watch {
 					typ = utils.EventDelete
 				}
 
-				if err := output.Add(typ, key, value); err != nil {
+				if err := storeEvent.Add(typ, key, value); err != nil { // add /apisix/routes/9  data
 					log.Warnf("etcd watch key[%s]'s %s event failed: %s", key, typ, err)
 					continue
 				}
 			}
 
-			ch <- &output
+			ch <- &storeEvent
 		}
 	}()
 

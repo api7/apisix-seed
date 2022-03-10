@@ -15,7 +15,6 @@ import (
 
 func main() {
 	conf.InitConf()
-	log.InitLogger()
 
 	etcdClient, err := storer.NewEtcd(conf.ETCDConfig)
 	if err != nil {

@@ -97,21 +97,21 @@ func TestList(t *testing.T) {
 			},
 			giveListRet: utils.Message{
 				{
-					Key:   "test/demo1-f1",
+					Key:   "/prefix/test/demo1-f1",
 					Value: `{"Field1":"demo1-f1", "Field2":"demo1-f2"}`,
 				},
 				{
-					Key:   "test/demo2-f1",
+					Key:   "/prefix/test/demo2-f1",
 					Value: `{"Field1":"demo2-f1", "Field2":"demo2-f2"}`,
 				},
 			},
 			wantCache: map[string]interface{}{
-				"demo1-f1": &TestStruct{
+				"/prefix/test/demo1-f1": &TestStruct{
 					BaseInfo: entity.BaseInfo{ID: "demo1-f1"},
 					Field1:   "demo1-f1",
 					Field2:   "demo1-f2",
 				},
-				"demo2-f1": &TestStruct{
+				"/prefix/test/demo2-f1": &TestStruct{
 					BaseInfo: entity.BaseInfo{ID: "demo2-f1"},
 					Field1:   "demo2-f1",
 					Field2:   "demo2-f2",
@@ -139,7 +139,7 @@ func TestList(t *testing.T) {
 					Value: `{"Field1","demo1-f1", "Field2":"demo1-f2"}`,
 				},
 			},
-			wantErr: fmt.Errorf("unmarshal failed\n\tRelated Key:\t\tdemo1-f1\n\tError Description:\t" +
+			wantErr: fmt.Errorf("unmarshal failed\n\tRelated Key:\t\ttest/demo1-f1\n\tError Description:\t" +
 				"invalid character ',' after object key"),
 		},
 	}
@@ -171,8 +171,8 @@ func TestWatch(t *testing.T) {
 	tests := []struct {
 		caseDesc    string
 		giveOpt     GenericStoreOption
-		giveWatchCh chan *Watch
-		giveWatch   *Watch
+		giveWatchCh chan *StoreEvent
+		giveWatch   *StoreEvent
 	}{
 		{
 			caseDesc: "sanity",
@@ -180,8 +180,8 @@ func TestWatch(t *testing.T) {
 				BasePath: "test",
 				ObjType:  reflect.TypeOf(TestStruct{}),
 			},
-			giveWatchCh: make(chan *Watch, 1),
-			giveWatch: &Watch{
+			giveWatchCh: make(chan *StoreEvent, 1),
+			giveWatch: &StoreEvent{
 				Events: []Event{
 					{
 						utils.Message{
@@ -244,7 +244,7 @@ func TestUpdate(t *testing.T) {
 			giveCache: map[string]interface{}{
 				"test/test1": &TestNodes{},
 			},
-			giveKey: "test1",
+			giveKey: "test/test1",
 			giveNodes: []*entity.Node{
 				{Host: "test.com", Weight: 10},
 			},
@@ -270,7 +270,7 @@ func TestUpdate(t *testing.T) {
 			giveCache: map[string]interface{}{
 				"test/test1": &TestStruct{},
 			},
-			giveKey: "test1",
+			giveKey: "test/test1",
 			wantErr: fmt.Errorf("object can't set nodes"),
 		},
 	}
@@ -319,7 +319,7 @@ func TestStringToObjPtr(t *testing.T) {
 		ObjType:  reflect.TypeOf(entity.Upstream{}),
 	}, nil)
 	assert.Nil(t, err)
-	rawID, id := "test/1", "1"
+	rawID, id := "/apisix/test/1", "1"
 	argStr := `{"discovery_args":{"namespace_id":"dev", "group_name":"test"}}`
 	argInterface, err := s.StringToObjPtr(argStr, rawID)
 	assert.Nil(t, err)

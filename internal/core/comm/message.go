@@ -8,29 +8,29 @@ import (
 	"go.uber.org/zap/buffer"
 )
 
-var watchHeader = []string{"event", "service"}
+var msgHeader = []string{"event", "service"}
 
-type Watch struct {
+type Message struct {
 	header   utils.Message
 	entities utils.Message
 	nodes    utils.Message
 }
 
-func NewWatch(values []string, entities, nodes utils.Message) (Watch, error) {
-	header, err := newHeader(values, watchHeader)
+func NewMessage(values []string, entities, nodes utils.Message) (Message, error) {
+	header, err := newHeader(values, msgHeader)
 	if err != nil {
-		return Watch{}, err
+		return Message{}, err
 	}
 
-	return Watch{
+	return Message{
 		header:   header,
 		entities: entities,
 		nodes:    nodes,
 	}, nil
 }
 
-func (msg *Watch) Decode() ([]string, []string, map[string]float64, error) {
-	if err := headerCheck(msg.header, watchHeader); err != nil {
+func (msg *Message) Decode() ([]string, []string, map[string]float64, error) {
+	if err := headerCheck(msg.header, msgHeader); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -63,7 +63,7 @@ func (msg *Watch) Decode() ([]string, []string, map[string]float64, error) {
 	return msgValues, msgEntities, msgNodes, nil
 }
 
-func (msg *Watch) String() string {
+func (msg *Message) String() string {
 	msgString := buffer.Buffer{}
 
 	msgs := []utils.Message{msg.header, msg.entities, msg.nodes}

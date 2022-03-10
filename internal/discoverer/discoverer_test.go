@@ -37,8 +37,8 @@ key: weight, value: 20`},
 	}
 
 	for _, tc := range tests {
-		watch, err := tc.giveService.EncodeWatch()
+		msg, err := tc.giveService.NewNotifyMessage()
 		assert.Nil(t, err)
-		assert.True(t, watch.String() == tc.wantMsg, tc.caseDesc)
+		assert.True(t, msg.String() == tc.wantMsg, tc.caseDesc)
 	}
 }

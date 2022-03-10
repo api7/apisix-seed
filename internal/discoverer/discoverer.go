@@ -3,7 +3,6 @@ package discoverer
 import (
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/utils"
@@ -20,7 +19,7 @@ type Discoverer interface {
 	Stop()
 	Query(*comm.Query) error
 	Update(*comm.Update) error
-	Watch() chan *comm.Watch
+	Watch() chan *comm.Message
 }
 
 // Node defines the upstream machine information
@@ -37,7 +36,7 @@ type Service struct {
 	args     map[string]string
 }
 
-func (s *Service) EncodeNodes() utils.Message {
+func (s *Service) encodeNodes() utils.Message {
 	msg := make(utils.Message, 0, 2*len(s.nodes))
 	for _, node := range s.nodes {
 		msg.Add("node", node.host)
@@ -46,7 +45,7 @@ func (s *Service) EncodeNodes() utils.Message {
 	return msg
 }
 
-func (s *Service) EncodeEntities() utils.Message {
+func (s *Service) encodeEntities() utils.Message {
 	msg := make(utils.Message, 0, len(s.entities))
 	for entity := range s.entities {
 		msg.Add("entity", entity)
@@ -58,24 +57,21 @@ func (s *Service) EncodeEntities() utils.Message {
 	return msg
 }
 
-// EncodeWatch encodes a service to the watch message
-func (s *Service) EncodeWatch() (*comm.Watch, error) {
+// NewCommonMessage encodes a service to the watch message
+// message:
+///{
+//	header: [event->add, serviceName->APISIX_NACOS]
+//	entities: [/apisix/routes/1, /apisix/service/1, /apisix/upstream/1]
+//	nodes: [127.0.0.1:10000:1, 127.0.0.1:10001:1]
+//}
+func (s *Service) NewNotifyMessage() (*comm.Message, error) {
 	headerVals := []string{utils.EventUpdate, s.name}
-	entities := s.EncodeEntities()
-	nodes := s.EncodeNodes()
+	entities := s.encodeEntities()
+	nodes := s.encodeNodes()
 
-	watch, err := comm.NewWatch(headerVals, entities, nodes)
+	msg, err := comm.NewMessage(headerVals, entities, nodes)
 	if err != nil {
 		return nil, err
 	}
-	return &watch, nil
-}
-
-func EncodeEntityID(entity, id string) string {
-	return entity + ";" + id
-}
-
-func DecodeEntityID(id string) (string, string) {
-	strs := strings.SplitN(id, ";", 2)
-	return strs[0], strs[1]
+	return &msg, nil
 }

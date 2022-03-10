@@ -55,6 +55,12 @@ func embedElm(v reflect.Value, all map[string]interface{}) {
 			continue
 		}
 
+		if fieldName == "DiscoveryType" || fieldName == "ServiceName" {
+			all["_"+tagName] = val.Interface()
+			delete(all, tagName)
+			continue
+		}
+
 		if val.Kind() == reflect.Ptr {
 			val = val.Elem()
 		}
@@ -93,7 +99,9 @@ func (info *BaseInfo) Updating(storedInfo *BaseInfo) {
 
 func (info *BaseInfo) KeyCompat(key string) {
 	if info.ID == "" && key != "" {
-		info.ID = key
+		// TODO: we should get id by prefix in config
+		arr := strings.Split(key, "/")
+		info.ID = arr[len(arr)-1]
 	}
 }
 
@@ -118,10 +126,12 @@ type UpstreamArg struct {
 }
 
 type UpstreamDef struct {
-	Nodes         interface{}  `json:"nodes,omitempty"`
-	DiscoveryType string       `json:"discovery_type,omitempty"`
-	DiscoveryArgs *UpstreamArg `json:"discovery_args,omitempty"`
-	ServiceName   string       `json:"service_name,omitempty"`
+	Nodes            interface{}  `json:"nodes,omitempty"`
+	DiscoveryType    string       `json:"discovery_type,omitempty"`
+	DupDiscoveryType string       `json:"_discovery_type,omitempty"`
+	DiscoveryArgs    *UpstreamArg `json:"discovery_args,omitempty"`
+	DupServiceName   string       `json:"_service_name,omitempty"`
+	ServiceName      string       `json:"service_name,omitempty"`
 }
 
 func (u *UpstreamDef) SetNodes(nodes []*Node) {
@@ -140,9 +150,25 @@ func (u *UpstreamDef) GetArgs() map[string]string {
 	return args
 }
 
-type Queer interface {
+func (u *UpstreamDef) GetServiceName() string {
+	if u.ServiceName != "" {
+		return u.ServiceName
+	}
+	return u.DupServiceName
+}
+
+func (u *UpstreamDef) GetDiscoveryType() string {
+	if u.DiscoveryType != "" {
+		return u.DiscoveryType
+	}
+	return u.DupDiscoveryType
+}
+
+type Entity interface {
 	Extract() (string, string, map[string]string)
-	GetType() string
+	GetDiscoveryType() string
+	KeyPath(basePath string) string
+	Type() string
 }
 
 type Upstream struct {
@@ -160,14 +186,22 @@ func (u *Upstream) SetNodes(nodes []*Node) {
 }
 
 func (u *Upstream) Extract() (string, string, map[string]string) {
-	id, service := u.ID, u.ServiceName
+	id, service := u.ID, u.GetServiceName()
 	args := (u.UpstreamDef).GetArgs()
 
 	return id, service, args
 }
 
-func (u *Upstream) GetType() string {
-	return u.DiscoveryType
+func (u *Upstream) GetDiscoveryType() string {
+	return (u.UpstreamDef).GetDiscoveryType()
+}
+
+func (u *Upstream) KeyPath(basePath string) string {
+	return basePath + "/" + u.ID
+}
+
+func (u *Upstream) Type() string {
+	return "upstreams"
 }
 
 type Route struct {
@@ -185,14 +219,22 @@ func (r *Route) SetNodes(nodes []*Node) {
 }
 
 func (r *Route) Extract() (string, string, map[string]string) {
-	id, service := r.ID, r.Upstream.ServiceName
+	id, service := r.ID, r.Upstream.GetServiceName()
 	args := r.Upstream.GetArgs()
 
 	return id, service, args
 }
 
-func (r *Route) GetType() string {
-	return r.Upstream.DiscoveryType
+func (r *Route) GetDiscoveryType() string {
+	return r.Upstream.GetDiscoveryType()
+}
+
+func (r *Route) KeyPath(basePath string) string {
+	return basePath + "/" + r.ID
+}
+
+func (r *Route) Type() string {
+	return "routes"
 }
 
 type Service struct {
@@ -210,12 +252,20 @@ func (s *Service) SetNodes(nodes []*Node) {
 }
 
 func (s *Service) Extract() (string, string, map[string]string) {
-	id, service := s.ID, s.Upstream.ServiceName
+	id, service := s.ID, s.Upstream.GetServiceName()
 	args := s.Upstream.GetArgs()
 
 	return id, service, args
 }
 
-func (s *Service) GetType() string {
-	return s.Upstream.DiscoveryType
+func (s *Service) GetDiscoveryType() string {
+	return s.Upstream.GetDiscoveryType()
+}
+
+func (s *Service) KeyPath(basePath string) string {
+	return basePath + "/" + s.ID
+}
+
+func (*Service) Type() string {
+	return "services"
 }
