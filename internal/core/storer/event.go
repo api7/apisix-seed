@@ -62,7 +62,14 @@ func (msg *StoreEvent) Decode() ([][]string, error) {
 	}
 
 	msgValues := make([][]string, len(msg.Events))
-	for i, event := range msg.Events { //event: [header, header, header], header-> [{key:event, value:add}, {key:key, value:/apisix/routes/9},{key:value, value:data}]
+	/*event: [header, header, header],
+	header-> [
+		{key:event, value:add},
+		{key:key, value:/apisix/routes/9},
+		{key:value, value:data}
+	]
+	*/
+	for i, event := range msg.Events {
 		msgValues[i] = make([]string, len(eventHeader))
 		for j, pair := range event.header {
 			msgValues[i][j] = pair.Value

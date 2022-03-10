@@ -49,7 +49,7 @@ func (r *Rewriter) watch(ch chan *comm.Message) {
 		case <-r.ctx.Done():
 			return
 		case msg := <-ch:
-			// hand nacos notify message
+			// hand watcher notify message
 			values, entities, nodes, err := msg.Decode()
 			if err != nil {
 				log.Warnf("Rewriter decode watch message error: %s", err)
@@ -57,7 +57,7 @@ func (r *Rewriter) watch(ch chan *comm.Message) {
 			}
 
 			if len(nodes) == 0 {
-				continue
+				log.Errorf("Rewriter found empty nodes")
 			}
 			if values[0] == utils.EventUpdate {
 				log.Infof("Rewriter update the service information of entities: %s", msg.String())
