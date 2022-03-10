@@ -8,11 +8,7 @@ import (
 	"github.com/api7/apisix-seed/internal/utils"
 )
 
-var (
-	Discoveries = make(map[string]Discover)
-)
-
-type Discover func(disConfig interface{}) (Discoverer, error)
+type NewDiscoverFunc func(disConfig interface{}) (Discoverer, error)
 
 // Discoverer defines the component that interact nacos, consul and so on
 type Discoverer interface {

@@ -3,7 +3,6 @@ package components
 import (
 	"context"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/api7/apisix-seed/internal/core/comm"
@@ -20,6 +19,8 @@ type Rewriter struct {
 
 	// Limit the number of simultaneously update
 	sem chan struct{}
+
+	Prefix string
 }
 
 func (r *Rewriter) Init() {
@@ -71,27 +72,26 @@ func (r *Rewriter) update(entities []string, nodes []*entity.Node) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(entities))
 	for _, entityID := range entities {
-		hubKey := getHubKey(entityID)
 		select {
 		case <-r.ctx.Done():
 			return
 		case r.sem <- struct{}{}:
-			go r.write(entityID, hubKey, nodes, &wg)
+			go r.write(entityID, nodes, &wg)
 		}
 	}
 	wg.Wait()
 }
 
-func (r *Rewriter) write(key string, hubKey storer.HubKey, nodes []*entity.Node, wg *sync.WaitGroup) {
+func (r *Rewriter) write(key string, nodes []*entity.Node, wg *sync.WaitGroup) {
 	defer func() {
 		<-r.sem
 		wg.Done()
 	}()
 
-	_ = storer.GetStore(hubKey).UpdateNodes(r.ctx, key, nodes)
-}
-
-func getHubKey(entityID string) storer.HubKey {
-	s := strings.Split(entityID, "/")[2]
-	return storer.HubKey(s[:len(s)-1])
+	_, entity, _ := storer.FromatKey(key, r.Prefix)
+	if entity == "" {
+		log.Errorf("key format Invaild: ", key)
+		return
+	}
+	_ = storer.GetStore(entity).UpdateNodes(r.ctx, key, nodes)
 }

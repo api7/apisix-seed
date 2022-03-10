@@ -97,14 +97,6 @@ func (info *BaseInfo) Updating(storedInfo *BaseInfo) {
 	info.UpdateTime = time.Now().Unix()
 }
 
-func (info *BaseInfo) KeyCompat(key string) {
-	if info.ID == "" && key != "" {
-		// TODO: we should get id by prefix in config
-		arr := strings.Split(key, "/")
-		info.ID = arr[len(arr)-1]
-	}
-}
-
 type BaseInfoSetter interface {
 	GetBaseInfo() *BaseInfo
 }

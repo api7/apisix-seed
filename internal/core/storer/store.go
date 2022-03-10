@@ -21,6 +21,7 @@ type Interface interface {
 
 type GenericStoreOption struct {
 	BasePath string
+	Prefix   string
 	ObjType  reflect.Type
 }
 
@@ -167,7 +168,12 @@ func (s *GenericStore) StringToObjPtr(str, key string) (interface{}, error) {
 
 	if setter, ok := ret.(entity.BaseInfoSetter); ok {
 		info := setter.GetBaseInfo()
-		info.KeyCompat(key)
+		if info.ID == "" {
+			_, _, id := FromatKey(key, s.opt.Prefix)
+			if id != "" {
+				info.ID = id
+			}
+		}
 	}
 
 	return ret, nil

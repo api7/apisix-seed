@@ -39,7 +39,9 @@ func main() {
 	}()
 	wg.Wait()
 
-	rewriter := components.Rewriter{}
+	rewriter := components.Rewriter{
+		Prefix: conf.ETCDConfig.Prefix,
+	}
 	rewriter.Init()
 
 	watcher := components.Watcher{}

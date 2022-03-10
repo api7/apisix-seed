@@ -13,6 +13,73 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestFromatKey(t *testing.T) {
+	tests := []struct {
+		caseDesc   string
+		giveKey    string
+		givePrefix string
+		wantPrefix string
+		wantEnity  string
+		wantID     string
+	}{
+		{
+			caseDesc:   "Normal case 1",
+			giveKey:    "/prefix/entity/1",
+			givePrefix: "/prefix",
+			wantPrefix: "/prefix",
+			wantEnity:  "entity",
+			wantID:     "1",
+		},
+		{
+			caseDesc:   "Normal case 2",
+			giveKey:    "/prefix/entity/1/22",
+			givePrefix: "/prefix",
+			wantPrefix: "/prefix",
+			wantEnity:  "entity",
+			wantID:     "1/22",
+		},
+		{
+			caseDesc:   "prefix not match",
+			giveKey:    "/prefix/entity/1/22",
+			givePrefix: "/aaaa",
+			wantPrefix: "",
+			wantEnity:  "",
+			wantID:     "",
+		},
+		{
+			caseDesc:   "prefix equal key",
+			giveKey:    "/prefix/entity/1/22",
+			givePrefix: "/prefix/entity/1/22",
+			wantPrefix: "",
+			wantEnity:  "",
+			wantID:     "",
+		},
+		{
+			caseDesc:   "prefix length is small than key",
+			giveKey:    "/prefix/entity/1/22",
+			givePrefix: "/prefix/entity/1/22/dsadas",
+			wantPrefix: "",
+			wantEnity:  "",
+			wantID:     "",
+		},
+		{
+			caseDesc:   "key is invalid",
+			giveKey:    "/prefix//",
+			givePrefix: "/prefix",
+			wantPrefix: "/prefix",
+			wantEnity:  "",
+			wantID:     "",
+		},
+	}
+
+	for _, tc := range tests {
+		prefix, entity, id := FromatKey(tc.giveKey, tc.givePrefix)
+		assert.Equal(t, tc.wantPrefix, prefix, tc.caseDesc)
+		assert.Equal(t, tc.wantEnity, entity)
+		assert.Equal(t, tc.wantID, id)
+	}
+}
+
 func TestNewGenericStore(t *testing.T) {
 	tests := []struct {
 		caseDesc  string
@@ -92,7 +159,8 @@ func TestList(t *testing.T) {
 		{
 			caseDesc: "sanity",
 			giveOpt: GenericStoreOption{
-				BasePath: "test",
+				BasePath: "/prefix/test",
+				Prefix:   "/prefix",
 				ObjType:  reflect.TypeOf(TestStruct{}),
 			},
 			giveListRet: utils.Message{
@@ -130,16 +198,17 @@ func TestList(t *testing.T) {
 		{
 			caseDesc: "json error",
 			giveOpt: GenericStoreOption{
-				BasePath: "test",
+				BasePath: "/prefix/test",
+				Prefix:   "/prefix",
 				ObjType:  reflect.TypeOf(TestStruct{}),
 			},
 			giveListRet: utils.Message{
 				{
-					Key:   "test/demo1-f1",
+					Key:   "/prefix/test/demo1-f1",
 					Value: `{"Field1","demo1-f1", "Field2":"demo1-f2"}`,
 				},
 			},
-			wantErr: fmt.Errorf("unmarshal failed\n\tRelated Key:\t\ttest/demo1-f1\n\tError Description:\t" +
+			wantErr: fmt.Errorf("unmarshal failed\n\tRelated Key:\t\t/prefix/test/demo1-f1\n\tError Description:\t" +
 				"invalid character ',' after object key"),
 		},
 	}
@@ -315,7 +384,8 @@ func TestUpdate(t *testing.T) {
 
 func TestStringToObjPtr(t *testing.T) {
 	s, err := NewGenericStore("upstream", GenericStoreOption{
-		BasePath: "test",
+		BasePath: "/apisix/test",
+		Prefix:   "/apisix",
 		ObjType:  reflect.TypeOf(entity.Upstream{}),
 	}, nil)
 	assert.Nil(t, err)
