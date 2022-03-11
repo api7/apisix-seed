@@ -13,27 +13,25 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func init() {
-	// Init Mock Discoverer
-	discoverer.Discoveries = map[string]discoverer.Discover{
+func TestWatcherInit(t *testing.T) {
+	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
 		"mock": discoverer.NewDiscovererMock,
 	}
-}
+	_ = discoverer.InitDiscoverer("mock", nil)
 
-func TestWatcherInit(t *testing.T) {
 	giveOpt := storer.GenericStoreOption{
-		BasePath: "test",
+		BasePath: "/prefix/mock",
+		Prefix:   "/prefix",
 		ObjType:  reflect.TypeOf(entity.Route{}),
 	}
 	giveListRet := utils.Message{
 		{
-			Key:   "test/demo1",
+			Key:   "/prefix/mock/demo1",
 			Value: `{"upstream":{"service_name": "test_service", "discovery_type": "mock"}}`,
 		},
 	}
-	wantValues := []string{utils.EventAdd, "test/demo1", "test_service"}
+	wantValues := []string{utils.EventAdd, "/prefix/mock/demo1", "test_service"}
 
-	_ = discoverer.InitDiscoverer("mock", nil)
 	discover := discoverer.GetDiscoverer("mock")
 	mDiscover := discover.(interface{}).(*discoverer.MockInterface)
 	mDiscover.On("Query", mock.Anything).Run(func(args mock.Arguments) {
@@ -49,6 +47,8 @@ func TestWatcherInit(t *testing.T) {
 		assert.Equal(t, giveOpt.BasePath, args[0])
 	}).Return(giveListRet, nil)
 
+	storer.ClrearStores()
+
 	err := storer.InitStore("mock", giveOpt, mStg)
 	assert.Nil(t, err)
 
@@ -57,14 +57,22 @@ func TestWatcherInit(t *testing.T) {
 }
 
 func TestWatcherWatch(t *testing.T) {
+	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
+		"mock": discoverer.NewDiscovererMock,
+	}
+	_ = discoverer.InitDiscoverer("mock", nil)
+
 	giveOpt := storer.GenericStoreOption{
-		BasePath: "test",
+		BasePath: "/prefix/mock",
+		Prefix:   "/prefix",
 		ObjType:  reflect.TypeOf(entity.Route{}),
 	}
 
 	watchCh := make(chan *storer.StoreEvent)
 	mStg := &storer.MockInterface{}
 	mStg.On("Watch", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {}).Return(watchCh)
+
+	storer.ClrearStores()
 
 	err := storer.InitStore("mock", giveOpt, mStg)
 	assert.Nil(t, err)
@@ -91,7 +99,7 @@ func TestWatcherWatch(t *testing.T) {
 
 	caseDesc := "Test add new service information"
 	giveEvent := utils.EventAdd
-	giveKey := "test/demo1"
+	giveKey := "/prefix/mock/demo1"
 	giveValue := `{"upstream":{"service_name": "test_service", "discovery_type": "mock"}}`
 
 	watchMsg := storer.NewStoreEvent(false)

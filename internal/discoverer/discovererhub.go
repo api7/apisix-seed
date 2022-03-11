@@ -7,6 +7,10 @@ import (
 	"github.com/api7/apisix-seed/internal/log"
 )
 
+var (
+	Discoveries = make(map[string]NewDiscoverFunc)
+)
+
 var discovererHub = map[string]Discoverer{}
 
 func InitDiscoverer(key string, disConfig interface{}) error {

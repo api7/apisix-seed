@@ -25,10 +25,10 @@ func (t *TestNodes) SetNodes(nodes []*entity.Node) {
 
 func init() {
 	// Init Mock Discoverer
-	discoverer.Discoveries = map[string]discoverer.Discover{
-		"mock": discoverer.NewDiscovererMock,
+	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
+		"mocks": discoverer.NewDiscovererMock,
 	}
-	_ = discoverer.InitDiscoverer("mock", nil)
+	_ = discoverer.InitDiscoverer("mocks", nil)
 }
 
 func TestRewriter(t *testing.T) {
@@ -51,16 +51,18 @@ func TestRewriter(t *testing.T) {
 		},
 	}
 
-	headerVals := []string{utils.EventUpdate, giveKey}
+	headerVals := []string{utils.EventUpdate, "mocks"}
 	watch, err := comm.NewMessage(headerVals, giveEntities, giveNodes)
 	assert.Nil(t, err, caseDesc)
 
 	watchCh := make(chan *comm.Message)
-	discover := discoverer.GetDiscoverer("mock")
+	discover := discoverer.GetDiscoverer("mocks")
 	mDiscover := discover.(interface{}).(*discoverer.MockInterface)
 	mDiscover.On("Watch").Run(func(args mock.Arguments) {}).Return(watchCh)
 
-	rewriter := Rewriter{}
+	rewriter := Rewriter{
+		Prefix: "/prefix",
+	}
 	rewriter.Init()
 
 	doneCh := make(chan struct{})
@@ -79,13 +81,15 @@ func TestRewriter(t *testing.T) {
 		doneCh <- struct{}{}
 	}).Return(nil)
 
-	err = storer.InitStore("mock", storer.GenericStoreOption{
-		BasePath: "test",
+	storer.ClrearStores()
+	err = storer.InitStore("mocks", storer.GenericStoreOption{
+		BasePath: "/prefix/mocks",
+		Prefix:   "/prefix",
 		ObjType:  reflect.TypeOf(TestNodes{}),
 	}, mStg)
 	assert.Nil(t, err, caseDesc)
 
-	store := storer.GetStore("mock")
+	store := storer.GetStore("mocks")
 	for k, v := range giveCache {
 		store.Store(k, v)
 	}
