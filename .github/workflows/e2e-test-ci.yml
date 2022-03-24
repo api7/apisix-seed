@@ -39,3 +39,4 @@ jobs:
     - name: run tests
       working-directory: ./test/e2e
       run: ginkgo -r
+
