@@ -1,0 +1,41 @@
+name: APISXI-Seed E2E Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  run-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: setup go
+      uses: actions/setup-go@v2.1.5
+      with:
+        go-version: "1.17"
+
+    - name: startup apisix and nacos
+      run: |
+        docker-compose -f ci/docker-compose.yml up -d
+        sleep 5
+
+    - name: build apisix-seed
+      run: |
+        go build
+
+    - name: startup apisix-seed
+      run: |
+        nohup ./apisix-seed &
+
+    - name: install ginkgo cli
+      run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
+
+    - name: run tests
+      working-directory: ./test/e2e
+      run: ginkgo -r
