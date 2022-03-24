@@ -41,9 +41,9 @@ func (r *Route) Do() error {
 		return err
 	}
 	if resp.StatusCode != 201 && resp.StatusCode != 200 {
-		panic("create route failed")
+		return errors.New(fmt.Sprintf("create route failed: /apisix/admin/routes/%s", r.ID))
 	}
-	fmt.Println("create route successful: ", "/apisix/admin/routes/"+r.ID)
+	fmt.Println("create route successful: /apisix/admin/routes/" + r.ID)
 	return nil
 }
 
