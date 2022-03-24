@@ -18,9 +18,9 @@ var _ = Describe("Nacos", Ordered, func() {
 			})).To(BeNil())
 			//create sim server
 			s1 = tools.NewSimServer("0.0.0.0", "9990", "APISIX-NACOS")
-			tools.CreateSimServer([]*tools.SimServer{
+			Expect(tools.CreateSimServer([]*tools.SimServer{
 				s1,
-			})
+			})).To(BeNil())
 			reg = tools.NewIRegCenter("nacos")
 		})
 

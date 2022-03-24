@@ -2,6 +2,7 @@ package tools
 
 import (
 	"e2e/tools/common"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -64,14 +65,15 @@ func NewSimServer(host, port, serviceName string) *SimServer {
 		running: false,
 	}
 }
-func CreateSimServer(servers []*SimServer) {
+func CreateSimServer(servers []*SimServer) error {
 	for _, s := range servers {
 		s.Run()
 	}
 
 	for _, s := range servers {
 		if !s.Running() {
-			panic("APISIX Test Server start failed: " + s.IPPort())
+			return errors.New(fmt.Sprintf("APISIX Test Server start failed: %s", s.IPPort()))
 		}
 	}
+	return nil
 }
