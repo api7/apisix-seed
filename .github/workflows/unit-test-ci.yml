@@ -19,7 +19,7 @@ jobs:
 
       - name: startup service
         run: |
-          docker-compose -f ci/docker-compose.yml up -d
+          docker-compose -f ci/pod/docker-compose.yml up -d
           sleep 5
 
       - name: run unit test
