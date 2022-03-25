@@ -48,8 +48,8 @@ const zkConfSchema = `
 type Zookeeper struct {
 	Hosts   []string
 	Prefix  string
-	Weight  uint
-	Timeout uint
+	Weight  int
+	Timeout int
 }
 
 func zkBuilder(content []byte) (interface{}, error) {

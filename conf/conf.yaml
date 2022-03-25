@@ -26,6 +26,6 @@ discovery:                       # service discovery center
   zookeeper:
     hosts:
       - "127.0.0.1:2181"
-    prefix: /apisix
+    prefix: /zookeeper
     weight: 100
     timeout: 60
