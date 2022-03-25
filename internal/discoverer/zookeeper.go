@@ -30,9 +30,6 @@ type ZookeeperService struct {
 }
 
 type ZookeeperDiscoverer struct {
-	timeout int
-	weight  int
-
 	zkConfig   *conf.Zookeeper
 	zkServices map[string]*ZookeeperService
 	eventMutex sync.Mutex
