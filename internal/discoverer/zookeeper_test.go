@@ -94,28 +94,20 @@ func TestZkDiscoverer(t *testing.T) {
 }
 
 func ZkDiscovererRegister(t *testing.T, dis interface{}) {
-	msg := dis.(*ZookeeperDiscoverer).Watch()
-	select {
-	case e := <-msg:
-		_, _, nodes, _ := e.Decode()
-		for node, _ := range nodes {
-			assert.Equal(t, node, "127.0.0.1:1980")
-			break
-		}
-		return
+	msg := <-dis.(*ZookeeperDiscoverer).Watch()
+	_, _, nodes, _ := msg.Decode()
+	for node := range nodes {
+		assert.Equal(t, node, "127.0.0.1:1980")
+		break
 	}
 }
 
 func ZkDiscovererUpdate(t *testing.T, dis interface{}) {
 	UpdateZkService(t)
-	msg := dis.(*ZookeeperDiscoverer).Watch()
-	select {
-	case e := <-msg:
-		_, _, nodes, _ := e.Decode()
-		for node, _ := range nodes {
-			assert.Equal(t, node, "127.0.0.1:1981")
-			break
-		}
-		return
+	msg := <-dis.(*ZookeeperDiscoverer).Watch()
+	_, _, nodes, _ := msg.Decode()
+	for node := range nodes {
+		assert.Equal(t, node, "127.0.0.1:1981")
+		break
 	}
 }
