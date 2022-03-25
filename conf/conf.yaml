@@ -23,3 +23,9 @@ discovery:                       # service discovery center
       connect: 2000              # default 2000ms
       send: 2000                 # default 2000ms
       read: 5000                 # default 5000ms
+  zookeeper:
+    hosts:
+      - "127.0.0.1:2181"
+    prefix: /apisix
+    weight: 100
+    timeout: 60

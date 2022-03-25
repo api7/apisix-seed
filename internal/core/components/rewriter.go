@@ -2,6 +2,8 @@ package components
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"runtime"
 	"sync"
 
@@ -93,5 +95,7 @@ func (r *Rewriter) write(key string, nodes []*entity.Node, wg *sync.WaitGroup) {
 		log.Errorf("key format Invaild: ", key)
 		return
 	}
+	j, _ := json.Marshal(nodes)
+	fmt.Printf("==== Key: %s, Nodes:  %s\n", key, string(j))
 	_ = storer.GetStore(entity).UpdateNodes(r.ctx, key, nodes)
 }

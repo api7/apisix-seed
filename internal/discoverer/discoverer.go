@@ -20,8 +20,8 @@ type Discoverer interface {
 
 // Node defines the upstream machine information
 type Node struct {
-	host   string
-	weight int
+	Host   string `json:"host"`
+	Weight int    `json:"weight"`
 }
 
 // Service defines the service information for discoverer
@@ -35,8 +35,8 @@ type Service struct {
 func (s *Service) encodeNodes() utils.Message {
 	msg := make(utils.Message, 0, 2*len(s.nodes))
 	for _, node := range s.nodes {
-		msg.Add("node", node.host)
-		msg.Add("weight", strconv.Itoa(node.weight))
+		msg.Add("node", node.Host)
+		msg.Add("weight", strconv.Itoa(node.Weight))
 	}
 	return msg
 }

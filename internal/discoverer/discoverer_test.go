@@ -17,8 +17,8 @@ func TestServiceEncodeWatch(t *testing.T) {
 			giveService: Service{
 				name: "test",
 				nodes: []Node{
-					{host: "127.0.0.1:80", weight: 10},
-					{host: "127.0.0.1:8080", weight: 20},
+					{Host: "127.0.0.1:80", Weight: 10},
+					{Host: "127.0.0.1:8080", Weight: 20},
 				},
 				entities: map[string]struct{}{
 					"upstream;2": {},

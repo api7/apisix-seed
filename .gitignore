@@ -18,3 +18,4 @@ apisix-seed
 # vendor/
 
 coverage.txt
+conf/conf-*.yaml
