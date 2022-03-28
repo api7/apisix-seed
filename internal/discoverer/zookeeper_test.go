@@ -89,12 +89,12 @@ func TestZkDiscoverer(t *testing.T) {
 	err = dis.Query(&query)
 	assert.Nil(t, err)
 	msg := dis.Watch()
-	ZkDiscovererRegister(t, msg)
-	ZkDiscovererUpdate(t, msg)
-	ZkDiscovererRemove(t, msg)
+	zkDiscovererRegister(t, msg)
+	zkDiscovererUpdate(t, msg)
+	zkDiscovererRemove(t, msg)
 }
 
-func ZkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
+func zkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
 	for node := range nodes {
@@ -103,7 +103,7 @@ func ZkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
 	}
 }
 
-func ZkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
+func zkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
 	updateZkService(t)
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
@@ -113,7 +113,7 @@ func ZkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
 	}
 }
 
-func ZkDiscovererRemove(t *testing.T, msg chan *comm.Message) {
+func zkDiscovererRemove(t *testing.T, msg chan *comm.Message) {
 	removeZkService(t)
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
