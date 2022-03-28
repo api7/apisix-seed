@@ -1,9 +1,6 @@
 package discoverer
 
 import (
-	"io/ioutil"
-	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,29 +18,23 @@ var zkService = "svc"
 var zkNode1 = "{\"host\":\"127.0.0.1:1980\",\"weight\":100}"
 var zkNode2 = "{\"host\":\"127.0.0.1:1981\",\"weight\":100}"
 var zkConn *zk.Conn
+var zkYamlConfig = `
+hosts:
+  - "127.0.0.1:2181"
+prefix: /zookeeper
+weight: 100
+timeout: 10
+`
 
 func GetZkConfig(t *testing.T) *conf.Zookeeper {
-	wd, _ := os.Getwd()
-	dir := wd[:strings.Index(wd, "internal")]
-	content, err := ioutil.ReadFile(dir + "conf/conf.yaml")
-	assert.Nil(t, err)
-	config := &conf.Config{}
-	err = yaml.Unmarshal(content, config)
-	assert.Nil(t, err)
 	zkConf := &conf.Zookeeper{}
-	for n, c := range config.Discovery {
-		if n == zkName {
-			raw, err := yaml.Marshal(c)
-			assert.Nil(t, err)
-			err = yaml.Unmarshal(raw, &zkConf)
-			assert.Nil(t, err)
-			break
-		}
-	}
+	err := yaml.Unmarshal([]byte(zkYamlConfig), zkConf)
+	assert.Nil(t, err)
+
 	return zkConf
 }
 
-func InitZkConn(t *testing.T) *zk.Conn {
+func initZkConn(t *testing.T) *zk.Conn {
 	if zkConn == nil {
 		config := GetZkConfig(t)
 		conn, _, err := zk.Connect(config.Hosts, time.Second*time.Duration(config.Timeout))
@@ -54,20 +45,20 @@ func InitZkConn(t *testing.T) *zk.Conn {
 	return zkConn
 }
 
-func UpdateZkService(t *testing.T) {
-	conn := InitZkConn(t)
+func updateZkService(t *testing.T) {
+	conn := initZkConn(t)
 	_, err := conn.Set(zkPrefix+"/"+zkService, []byte(zkNode2), 0)
 	assert.Nil(t, err)
 }
 
-func CreateZkService(t *testing.T) {
-	conn := InitZkConn(t)
+func createZkService(t *testing.T) {
+	conn := initZkConn(t)
 	_, err := conn.Create(zkPrefix+"/"+zkService, []byte(zkNode1), 0, zk.WorldACL(zk.PermAll))
 	assert.Nil(t, err)
 }
 
-func RemoveZkService(t *testing.T) {
-	conn := InitZkConn(t)
+func removeZkService(t *testing.T) {
+	conn := initZkConn(t)
 	svcPath := zkPrefix + "/" + zkService
 	data, _, err := conn.Get(svcPath)
 	if len(data) == 0 && err != nil {
@@ -86,8 +77,8 @@ func TestNewZkDiscoverer(t *testing.T) {
 }
 
 func TestZkDiscoverer(t *testing.T) {
-	RemoveZkService(t)
-	CreateZkService(t)
+	removeZkService(t)
+	createZkService(t)
 	config := GetZkConfig(t)
 	assert.NotNil(t, config)
 	dis, err := Discoveries[zkName](config)
@@ -113,7 +104,7 @@ func ZkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
 }
 
 func ZkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
-	UpdateZkService(t)
+	updateZkService(t)
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
 	for node := range nodes {
@@ -123,7 +114,7 @@ func ZkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
 }
 
 func ZkDiscovererRemove(t *testing.T, msg chan *comm.Message) {
-	RemoveZkService(t)
+	removeZkService(t)
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
 	assert.Nil(t, nodes)

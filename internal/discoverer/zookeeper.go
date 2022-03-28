@@ -55,12 +55,8 @@ func (zd *ZookeeperDiscoverer) Query(query *comm.Query) error {
 
 	switch event {
 	case utils.EventAdd:
-		zd.eventMutex.Lock()
-		defer zd.eventMutex.Unlock()
 		err = zd.fetchService(serviceName, []string{entity})
 	case utils.EventDelete:
-		zd.eventMutex.Lock()
-		defer zd.eventMutex.Unlock()
 		err = zd.removeService(serviceName)
 	}
 
@@ -83,6 +79,8 @@ func (zd *ZookeeperDiscoverer) Watch() chan *comm.Message {
 }
 
 func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string) error {
+	zd.eventMutex.Lock()
+	defer zd.eventMutex.Unlock()
 	zkService, ok := zd.zkServices[serviceName]
 	if !ok {
 		var err error
@@ -125,6 +123,8 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string
 }
 
 func (zd *ZookeeperDiscoverer) removeService(serviceName string) error {
+	zd.eventMutex.Lock()
+	defer zd.eventMutex.Unlock()
 	zkService, ok := zd.zkServices[serviceName]
 	if !ok {
 		return errors.New("Zookeeper service: " + serviceName + " undefined")
