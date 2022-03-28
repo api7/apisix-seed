@@ -1,17 +1,18 @@
 package discoverer
 
 import (
+	"io/ioutil"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
-	"os"
-	"strings"
-	"testing"
-	"time"
 )
 
 var zkName = "zookeeper"
@@ -42,7 +43,7 @@ func GetZkConfig(t *testing.T) *conf.Zookeeper {
 	return zkConf
 }
 
-func InitZkConn(t *testing.T) {
+func InitZkConn(t *testing.T) *zk.Conn {
 	if zkConn == nil {
 		config := GetZkConfig(t)
 		conn, _, err := zk.Connect(config.Hosts, time.Second*time.Duration(config.Timeout))
@@ -50,23 +51,30 @@ func InitZkConn(t *testing.T) {
 		assert.NotNil(t, conn)
 		zkConn = conn
 	}
+	return zkConn
 }
 
 func UpdateZkService(t *testing.T) {
-	InitZkConn(t)
-	_, err := zkConn.Set(zkPrefix+"/"+zkService, []byte(zkNode2), 0)
+	conn := InitZkConn(t)
+	_, err := conn.Set(zkPrefix+"/"+zkService, []byte(zkNode2), 0)
 	assert.Nil(t, err)
 }
 
 func CreateZkService(t *testing.T) {
-	InitZkConn(t)
-	_, err := zkConn.Create(zkPrefix+"/"+zkService, []byte(zkNode1), 0, zk.WorldACL(zk.PermAll))
+	conn := InitZkConn(t)
+	_, err := conn.Create(zkPrefix+"/"+zkService, []byte(zkNode1), 0, zk.WorldACL(zk.PermAll))
 	assert.Nil(t, err)
 }
 
 func RemoveZkService(t *testing.T) {
-	InitZkConn(t)
-	_ = zkConn.Delete(zkPrefix+"/"+zkService, 0)
+	conn := InitZkConn(t)
+	svcPath := zkPrefix + "/" + zkService
+	data, _, err := conn.Get(svcPath)
+	if len(data) == 0 && err != nil {
+		return
+	}
+	err = conn.Delete(zkPrefix+"/"+zkService, 1)
+	assert.Nil(t, err)
 }
 
 func TestNewZkDiscoverer(t *testing.T) {
@@ -89,25 +97,34 @@ func TestZkDiscoverer(t *testing.T) {
 	assert.Nil(t, err)
 	err = dis.Query(&query)
 	assert.Nil(t, err)
-	ZkDiscovererRegister(t, dis)
-	ZkDiscovererUpdate(t, dis)
+	msg := dis.Watch()
+	ZkDiscovererRegister(t, msg)
+	ZkDiscovererUpdate(t, msg)
+	ZkDiscovererRemove(t, msg)
 }
 
-func ZkDiscovererRegister(t *testing.T, dis interface{}) {
-	msg := <-dis.(*ZookeeperDiscoverer).Watch()
-	_, _, nodes, _ := msg.Decode()
+func ZkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
+	m := <-msg
+	_, _, nodes, _ := m.Decode()
 	for node := range nodes {
 		assert.Equal(t, node, "127.0.0.1:1980")
-		break
+		return
 	}
 }
 
-func ZkDiscovererUpdate(t *testing.T, dis interface{}) {
+func ZkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
 	UpdateZkService(t)
-	msg := <-dis.(*ZookeeperDiscoverer).Watch()
-	_, _, nodes, _ := msg.Decode()
+	m := <-msg
+	_, _, nodes, _ := m.Decode()
 	for node := range nodes {
 		assert.Equal(t, node, "127.0.0.1:1981")
-		break
+		return
 	}
+}
+
+func ZkDiscovererRemove(t *testing.T, msg chan *comm.Message) {
+	RemoveZkService(t)
+	m := <-msg
+	_, _, nodes, _ := m.Decode()
+	assert.Nil(t, nodes)
 }

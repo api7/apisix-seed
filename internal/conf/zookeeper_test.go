@@ -1,12 +1,13 @@
 package conf
 
 import (
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func ZkReadConfig(t *testing.T) *Config {
@@ -37,6 +38,6 @@ func TestZkBuilderConfig(t *testing.T) {
 		assert.Equal(t, zkConf.(*Zookeeper).Hosts, []string{"127.0.0.1:2181"})
 		assert.Equal(t, zkConf.(*Zookeeper).Prefix, "/zookeeper")
 		assert.Equal(t, zkConf.(*Zookeeper).Weight, 100)
-		assert.Equal(t, zkConf.(*Zookeeper).Timeout, 60)
+		assert.Equal(t, zkConf.(*Zookeeper).Timeout, 5)
 	}
 }

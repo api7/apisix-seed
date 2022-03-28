@@ -2,16 +2,17 @@ package discoverer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/log"
 	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/go-zookeeper/zk"
 	"golang.org/x/net/context"
-	"sort"
-	"sync"
-	"time"
 )
 
 func init() {
@@ -96,7 +97,13 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string
 	}
 
 	for _, entry := range entries {
-		if !inArray(entry, zkService.BindEntries) {
+		entryExists := false
+		for _, bindEntry := range zkService.BindEntries {
+			if entry == bindEntry {
+				entryExists = true
+			}
+		}
+		if !entryExists {
 			zkService.BindEntries = append(zkService.BindEntries, entry)
 		}
 	}
@@ -119,11 +126,12 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string
 
 func (zd *ZookeeperDiscoverer) removeService(serviceName string) error {
 	zkService, ok := zd.zkServices[serviceName]
-	if ok {
-		zd.unsubscribe(zkService)
+	if !ok {
+		return errors.New("Zookeeper service: " + serviceName + " undefined")
 	}
 
-	zd.sendMessage(zkService, []Node{})
+	zd.sendMessage(zkService, make([]Node, 0))
+	zd.unsubscribe(zkService)
 
 	return nil
 }
@@ -247,13 +255,4 @@ func (zd *ZookeeperDiscoverer) unsubscribe(service *ZookeeperService) {
 	service.WatchConn.Close()
 	delete(zd.zkServices, service.Name)
 	log.Infof("unsubscribe service: %s", service.Name)
-}
-
-func inArray(target string, array []string) bool {
-	sort.Strings(array)
-	index := sort.SearchStrings(array, target)
-	if index < len(array) && array[index] == target {
-		return true
-	}
-	return false
 }
