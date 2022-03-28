@@ -35,3 +35,8 @@ install:
 .PHONY: uninstall
 uninstall:
 	rm -rf /usr/local/apisix-seed
+
+### clean:		Clean apisix-seed
+.PHONY: clean
+clean:
+	rm -f apisix-seed
