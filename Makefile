@@ -44,3 +44,4 @@ uninstall:
 .PHONY: clean
 clean:
 	rm -f apisix-seed
+
