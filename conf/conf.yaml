@@ -26,5 +26,5 @@ discovery:                       # service discovery center
     hosts:
       - "127.0.0.1:2181"
     prefix: /zookeeper
-    weight: 100
-    timeout: 10
+    weight: 100                  # default weight for node
+    timeout: 10                  # default 10s

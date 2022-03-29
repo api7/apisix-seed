@@ -99,6 +99,7 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string
 		for _, bindEntry := range zkService.BindEntries {
 			if entry == bindEntry {
 				entryExists = true
+				break
 			}
 		}
 		if !entryExists {
