@@ -1,3 +1,7 @@
+ENV_INSTALL            ?= install
+ENV_RM                 ?= rm -vf
+ENV_INST_PREFIX        ?= /usr/local
+
 default: help
 
 ### help:		Show Makefile rules
@@ -25,16 +29,16 @@ build:
 ### install:		Install apisix-seed
 .PHONY: install
 install:
-	install -d /usr/local/apisix-seed
-	install -d /usr/local/apisix-seed/log
-	install -d /usr/local/apisix-seed/conf
-	install apisix-seed /usr/local/apisix-seed/
-	install conf/conf.yaml /usr/local/apisix-seed/conf/
+	$(ENV_INSTALL) -d $(ENV_INST_PREFIX)/apisix-seed
+	$(ENV_INSTALL) -d $(ENV_INST_PREFIX)/apisix-seed/log
+	$(ENV_INSTALL) -d $(ENV_INST_PREFIX)/apisix-seed/conf
+	$(ENV_INSTALL) apisix-seed $(ENV_INST_PREFIX)/apisix-seed/
+	$(ENV_INSTALL) conf/conf.yaml $(ENV_INST_PREFIX)/apisix-seed/conf/
 
 ### uninstall:		Uninstall apisix-seed
 .PHONY: uninstall
 uninstall:
-	rm -rf /usr/local/apisix-seed
+	$(ENV_RM) -r $(ENV_INST_PREFIX)/apisix-seed
 
 ### clean:		Clean apisix-seed
 .PHONY: clean
