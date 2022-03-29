@@ -3,9 +3,10 @@ package regcenter_test
 import (
 	"e2e/tools"
 	"e2e/tools/common"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"time"
 )
 
 var _ = Describe("Nacos", Ordered, func() {
