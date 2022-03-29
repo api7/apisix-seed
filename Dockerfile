@@ -23,3 +23,4 @@ ENV PATH=$PATH:/usr/local/apisix-seed
 ENV APISIX_SEED_WORKDIR /usr/local/apisix-seed
 
 CMD [ "/usr/local/apisix-seed/apisix-seed" ]
+
