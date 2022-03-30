@@ -3,7 +3,6 @@ package discoverer
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -149,7 +148,7 @@ func (zd *ZookeeperDiscoverer) sendMessage(zkService *ZookeeperService, nodes []
 
 	msg, err := messageService.NewNotifyMessage()
 	if err != nil {
-		log.Infof("Zookeeper send message fail, err: %s", err)
+		log.Errorf("Zookeeper send message fail, err: %s", err)
 		return
 	}
 
@@ -217,17 +216,16 @@ func (zd *ZookeeperDiscoverer) subscribe(service *ZookeeperService) {
 	for {
 		_, _, event, err := service.WatchConn.GetW(service.WatchPath)
 		if err != nil {
-			log.Infof("subscribe service: %s, err: %s", service.WatchPath, err)
+			log.Errorf("subscribe service: %s fail, err: %s", service.WatchPath, err)
 		}
 
 		_, _, childEvent, err := service.WatchConn.ChildrenW(service.RootPath)
 		if err != nil {
-			log.Infof("subscribe service root: %s, err: %s", service.RootPath, err)
+			log.Errorf("subscribe service root: %s fail, err: %s", service.RootPath, err)
 		}
 
 		select {
 		case <-service.WatchContext.Done():
-			fmt.Printf("subscribe service: %s cancel\n", service.WatchPath)
 			log.Infof("subscribe service: %s cancel, err: %s", service.WatchPath, service.WatchContext.Err())
 			return
 		case e := <-event:
