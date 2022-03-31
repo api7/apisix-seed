@@ -62,11 +62,7 @@ func (zd *ZookeeperDiscoverer) Query(query *comm.Query) error {
 		err = zd.removeService(serviceName)
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (zd *ZookeeperDiscoverer) Update(update *comm.Update) error {
