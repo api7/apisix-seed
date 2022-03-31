@@ -2,7 +2,6 @@ package discoverer
 
 import (
 	"testing"
-	"time"
 
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/comm"
@@ -75,15 +74,12 @@ func TestZkDiscoverer(t *testing.T) {
 	query, err := comm.NewQuery(headers, map[string]string{})
 	assert.Nil(t, err)
 	err = dis.Query(&query)
-	time.Sleep(time.Second * time.Duration(2))
 	assert.NotNil(t, err)
 	msg := dis.Watch()
 	createZkService(t, conn)
 	zkDiscovererRegister(t, msg)
-	time.Sleep(time.Second * time.Duration(2))
 	updateZkService(t, conn)
 	zkDiscovererUpdate(t, msg)
-	time.Sleep(time.Second * time.Duration(2))
 	removeZkService(t, conn)
 	zkDiscovererRemove(t, msg)
 }
