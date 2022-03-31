@@ -45,6 +45,16 @@ services:
       apisix-seed:
         ipv4_address: 172.50.238.30
 
+  ## Zookeeper
+  zookeeper:
+    image: zookeeper:3.7.0
+    restart: unless-stopped
+    ports:
+      - "2181:2181/tcp"
+    networks:
+      apisix_net:
+        ipv4_address: 172.50.238.40
+
 networks:
   apisix-seed:
     driver: bridge
