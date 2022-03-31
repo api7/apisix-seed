@@ -20,28 +20,31 @@ func init() {
 
 type ZookeeperService struct {
 	Name         string
-	BindEntries  []string
-	WatchConn    *zk.Conn
-	RootPath     string
+	BindEntities []string
 	WatchPath    string
 	WatchContext context.Context
 	WatchCancel  context.CancelFunc
-	WatchMutex   sync.Mutex
 }
 
 type ZookeeperDiscoverer struct {
-	zkConfig   *conf.Zookeeper
-	zkServices map[string]*ZookeeperService
-	eventMutex sync.Mutex
+	zkConfig          *conf.Zookeeper
+	zkConn            *zk.Conn
+	zkWatchServices   sync.Map
+	zkUnWatchServices sync.Map
+	zkUnWatchContext  context.Context
+	zkUnWatchCancel   context.CancelFunc
 
 	msgCh chan *comm.Message
 }
 
 func (zd *ZookeeperDiscoverer) Stop() {
-	for _, service := range zd.zkServices {
-		zd.unsubscribe(service)
-	}
+	zd.zkWatchServices.Range(func(key, value interface{}) bool {
+		zd.removeWatchService(value.(*ZookeeperService))
+		return true
+	})
 	close(zd.msgCh)
+	zd.zkConn.Close()
+	zd.zkUnWatchCancel()
 }
 
 func (zd *ZookeeperDiscoverer) Query(query *comm.Query) error {
@@ -77,10 +80,10 @@ func (zd *ZookeeperDiscoverer) Watch() chan *comm.Message {
 	return zd.msgCh
 }
 
-func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string) error {
-	zd.eventMutex.Lock()
-	defer zd.eventMutex.Unlock()
-	zkService, ok := zd.zkServices[serviceName]
+// fetchService fetch service watch and send message notify
+func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entities []string) error {
+	zkService, ok := zd.zkWatchServices.Load(serviceName)
+
 	if !ok {
 		var err error
 		zkService, err = zd.newZookeeperClient(serviceName)
@@ -88,25 +91,24 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string
 			return err
 		}
 
-		zd.zkServices[serviceName] = zkService
-
-		go zd.subscribe(zkService)
+		zd.addWatchService(zkService.(*ZookeeperService))
 	}
 
-	for _, entry := range entries {
+	for _, entity := range entities {
 		entryExists := false
-		for _, bindEntry := range zkService.BindEntries {
-			if entry == bindEntry {
+		for _, bindEntry := range zkService.(*ZookeeperService).BindEntities {
+			if entity == bindEntry {
 				entryExists = true
 				break
 			}
 		}
+
 		if !entryExists {
-			zkService.BindEntries = append(zkService.BindEntries, entry)
+			zkService.(*ZookeeperService).BindEntities = append(zkService.(*ZookeeperService).BindEntities, entity)
 		}
 	}
 
-	serviceInfo, _, err := zkService.WatchConn.Get(zkService.WatchPath)
+	serviceInfo, _, err := zd.zkConn.Get(zkService.(*ZookeeperService).WatchPath)
 	if err != nil {
 		return err
 	}
@@ -117,32 +119,33 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entries []string
 		return err
 	}
 
-	zd.sendMessage(zkService, []Node{node})
+	zd.sendMessage(zkService.(*ZookeeperService), []Node{node})
 
 	return nil
 }
 
+// removeService remove service watch and send message notify
 func (zd *ZookeeperDiscoverer) removeService(serviceName string) error {
-	zd.eventMutex.Lock()
-	defer zd.eventMutex.Unlock()
-	zkService, ok := zd.zkServices[serviceName]
+	zkService, ok := zd.zkWatchServices.Load(serviceName)
 	if !ok {
 		return errors.New("Zookeeper service: " + serviceName + " undefined")
 	}
 
-	zd.sendMessage(zkService, make([]Node, 0))
-	zd.unsubscribe(zkService)
+	zd.sendMessage(zkService.(*ZookeeperService), make([]Node, 0))
+	zd.removeWatchService(zkService.(*ZookeeperService))
 
 	return nil
 }
 
+// sendMessage send message notify
 func (zd *ZookeeperDiscoverer) sendMessage(zkService *ZookeeperService, nodes []Node) {
 	messageService := &Service{
 		name:     zkService.Name,
 		nodes:    nodes,
 		entities: make(map[string]struct{}),
 	}
-	for _, entry := range zkService.BindEntries {
+
+	for _, entry := range zkService.BindEntities {
 		messageService.entities[entry] = struct{}{}
 	}
 
@@ -155,55 +158,45 @@ func (zd *ZookeeperDiscoverer) sendMessage(zkService *ZookeeperService, nodes []
 	zd.msgCh <- msg
 }
 
+// NewZookeeperDiscoverer generate zookeeper discoverer instance
 func NewZookeeperDiscoverer(disConfig interface{}) (Discoverer, error) {
 	config := disConfig.(*conf.Zookeeper)
 
-	discoverer := ZookeeperDiscoverer{
-		msgCh:      make(chan *comm.Message, 10),
-		zkConfig:   config,
-		zkServices: make(map[string]*ZookeeperService),
-		eventMutex: sync.Mutex{},
-	}
-
-	return &discoverer, nil
-}
-
-func (zd *ZookeeperDiscoverer) newZookeeperClient(serviceName string) (*ZookeeperService, error) {
-	conn, _, err := zk.Connect(zd.zkConfig.Hosts, time.Second*time.Duration(zd.zkConfig.Timeout))
+	conn, _, err := zk.Connect(config.Hosts, time.Second*time.Duration(config.Timeout))
 	if err != nil {
-		return nil, err
-	}
-
-	err = zd.initZookeeperRoot(conn)
-	if err != nil {
-		conn.Close()
 		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	watchPath := zd.zkConfig.Prefix + "/" + serviceName
-	service := &ZookeeperService{
-		Name:         serviceName,
-		BindEntries:  make([]string, 0),
-		WatchConn:    conn,
-		RootPath:     zd.zkConfig.Prefix,
-		WatchPath:    watchPath,
-		WatchContext: ctx,
-		WatchCancel:  cancel,
-		WatchMutex:   sync.Mutex{},
+	discoverer := ZookeeperDiscoverer{
+		msgCh:             make(chan *comm.Message, 10),
+		zkConfig:          config,
+		zkConn:            conn,
+		zkWatchServices:   sync.Map{},
+		zkUnWatchServices: sync.Map{},
+		zkUnWatchContext:  ctx,
+		zkUnWatchCancel:   cancel,
 	}
 
-	return service, nil
+	err = discoverer.initZookeeperRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	go discoverer.watchServicePrefix()
+
+	return &discoverer, nil
 }
 
-func (zd *ZookeeperDiscoverer) initZookeeperRoot(zkClient *zk.Conn) error {
-	ok, _, err := zkClient.Exists(zd.zkConfig.Prefix)
+// initZookeeperRoot generate zookeeper root path
+func (zd *ZookeeperDiscoverer) initZookeeperRoot() error {
+	ok, _, err := zd.zkConn.Exists(zd.zkConfig.Prefix)
 	if err != nil {
 		return err
 	}
 
 	if !ok {
-		_, err = zkClient.Create(zd.zkConfig.Prefix, []byte(""), 0, zk.WorldACL(zk.PermAll))
+		_, err = zd.zkConn.Create(zd.zkConfig.Prefix, []byte(""), 0, zk.WorldACL(zk.PermAll))
 		if err != nil {
 			return err
 		}
@@ -212,46 +205,97 @@ func (zd *ZookeeperDiscoverer) initZookeeperRoot(zkClient *zk.Conn) error {
 	return nil
 }
 
-func (zd *ZookeeperDiscoverer) subscribe(service *ZookeeperService) {
-	for {
-		_, _, event, err := service.WatchConn.GetW(service.WatchPath)
-		if err != nil {
-			log.Errorf("subscribe service: %s fail, err: %s", service.WatchPath, err)
-		}
+// newZookeeperClient grantate zookeeper client
+func (zd *ZookeeperDiscoverer) newZookeeperClient(serviceName string) (*ZookeeperService, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	watchPath := zd.zkConfig.Prefix + "/" + serviceName
+	service := &ZookeeperService{
+		Name:         serviceName,
+		BindEntities: make([]string, 0),
+		WatchPath:    watchPath,
+		WatchContext: ctx,
+		WatchCancel:  cancel,
+	}
 
-		_, _, childEvent, err := service.WatchConn.ChildrenW(service.RootPath)
+	return service, nil
+}
+
+// watchServicePrefix watch service prefix change, update unwatch service
+func (zd *ZookeeperDiscoverer) watchServicePrefix() {
+	for {
+		_, _, event, err := zd.zkConn.ChildrenW(zd.zkConfig.Prefix)
 		if err != nil {
-			log.Errorf("subscribe service root: %s fail, err: %s", service.RootPath, err)
+			log.Errorf("watch service prefix: %s fail, err: %s", zd.zkConfig.Prefix, err)
+			return
 		}
 
 		select {
-		case <-service.WatchContext.Done():
-			log.Infof("subscribe service: %s cancel, err: %s", service.WatchPath, service.WatchContext.Err())
+		case <-zd.zkUnWatchContext.Done():
 			return
-		case e := <-event:
-			switch e.Type {
-			case zk.EventNodeDataChanged:
-				err = zd.fetchService(service.Name, service.BindEntries)
-				if err != nil {
-					log.Infof("subscribe service: %s fail, err: %s", service.WatchPath, err)
-				}
-			case zk.EventNodeDeleted:
-				err = zd.removeService(service.Name)
-				if err != nil {
-					log.Infof("subscribe service: %s remove fail", err)
+		case <-event:
+			var serviceNames []string
+			serviceNames, _, err = zd.zkConn.Children(zd.zkConfig.Prefix)
+			if err != nil {
+				log.Errorf("fetch service prefix: %s fail, err: %s", zd.zkConfig.Prefix, err)
+				return
+			}
+
+			for _, serviceName := range serviceNames {
+				a6Entity, ok := zd.zkUnWatchServices.Load(serviceName)
+				if ok {
+					err = zd.fetchService(serviceName, a6Entity.([]string))
+					if err != nil {
+						log.Errorf("fetch service: %s fail, err: %s", serviceName, err)
+					}
 				}
 			}
-		case e := <-childEvent:
-			log.Infof("subscribe service root event: %s", e.Type.String())
 		}
 	}
 }
 
-func (zd *ZookeeperDiscoverer) unsubscribe(service *ZookeeperService) {
-	service.WatchMutex.Lock()
-	defer service.WatchMutex.Unlock()
+// watchService watch service change
+func (zd *ZookeeperDiscoverer) watchService(service *ZookeeperService) {
+	for {
+		_, _, event, err := zd.zkConn.GetW(service.WatchPath)
+		if err != nil {
+			log.Errorf("watch service: %s fail, err: %s", service.WatchPath, err)
+			zd.removeWatchService(service)
+			return
+		}
+
+		select {
+		case <-service.WatchContext.Done():
+			log.Infof("watch service: %s cancel, err: %s", service.WatchPath, service.WatchContext.Err())
+			return
+		case e := <-event:
+			switch e.Type {
+			case zk.EventNodeDataChanged:
+				err = zd.fetchService(service.Name, service.BindEntities)
+				if err != nil {
+					log.Errorf("fetch service: %s fail, err: %s", service.WatchPath, err)
+				}
+			case zk.EventNodeDeleted:
+				err = zd.removeService(service.Name)
+				if err != nil {
+					log.Infof("remove service: %s remove fail", err)
+				}
+			}
+		}
+	}
+}
+
+// addWatchService remove watch service
+func (zd *ZookeeperDiscoverer) removeWatchService(service *ZookeeperService) {
 	service.WatchCancel()
-	service.WatchConn.Close()
-	delete(zd.zkServices, service.Name)
-	log.Infof("unsubscribe service: %s", service.Name)
+	zd.zkWatchServices.Delete(service.Name)
+	zd.zkUnWatchServices.LoadOrStore(service.Name, service.BindEntities)
+	log.Infof("start watch service: %s", service.Name)
+}
+
+// addWatchService add watch service
+func (zd *ZookeeperDiscoverer) addWatchService(service *ZookeeperService) {
+	zd.zkWatchServices.LoadOrStore(service.Name, service)
+	zd.zkUnWatchServices.Delete(service.Name)
+	go zd.watchService(service)
+	log.Infof("stop watch service: %s", service.Name)
 }

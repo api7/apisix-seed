@@ -17,7 +17,6 @@ var zkPrefix = "/zookeeper"
 var zkService = "svc"
 var zkNode1 = "{\"host\":\"127.0.0.1:1980\",\"weight\":100}"
 var zkNode2 = "{\"host\":\"127.0.0.1:1981\",\"weight\":100}"
-var zkConn *zk.Conn
 var zkYamlConfig = `
 hosts:
   - "127.0.0.1:2181"
@@ -34,37 +33,26 @@ func GetZkConfig(t *testing.T) *conf.Zookeeper {
 	return zkConf
 }
 
-func initZkConn(t *testing.T) *zk.Conn {
-	if zkConn == nil {
-		config := GetZkConfig(t)
-		conn, _, err := zk.Connect(config.Hosts, time.Second*time.Duration(config.Timeout))
-		assert.Nil(t, err)
-		assert.NotNil(t, conn)
-		zkConn = conn
-	}
-	return zkConn
-}
-
-func updateZkService(t *testing.T) {
-	conn := initZkConn(t)
-	_, err := conn.Set(zkPrefix+"/"+zkService, []byte(zkNode2), 0)
+func updateZkService(t *testing.T, conn *zk.Conn) {
+	svcPath := zkPrefix + "/" + zkService
+	_, stat, err := conn.Get(svcPath)
+	assert.Nil(t, err)
+	_, err = conn.Set(svcPath, []byte(zkNode2), stat.Version)
 	assert.Nil(t, err)
 }
 
-func createZkService(t *testing.T) {
-	conn := initZkConn(t)
+func createZkService(t *testing.T, conn *zk.Conn) {
 	_, err := conn.Create(zkPrefix+"/"+zkService, []byte(zkNode1), 0, zk.WorldACL(zk.PermAll))
 	assert.Nil(t, err)
 }
 
-func removeZkService(t *testing.T) {
-	conn := initZkConn(t)
+func removeZkService(t *testing.T, conn *zk.Conn) {
 	svcPath := zkPrefix + "/" + zkService
-	data, _, err := conn.Get(svcPath)
-	if len(data) == 0 && err != nil {
+	_, stat, err := conn.Get(svcPath)
+	if err != nil {
 		return
 	}
-	err = conn.Delete(zkPrefix+"/"+zkService, 1)
+	err = conn.Delete(zkPrefix+"/"+zkService, stat.Version)
 	assert.Nil(t, err)
 }
 
@@ -77,20 +65,26 @@ func TestNewZkDiscoverer(t *testing.T) {
 }
 
 func TestZkDiscoverer(t *testing.T) {
-	removeZkService(t)
-	createZkService(t)
 	config := GetZkConfig(t)
 	assert.NotNil(t, config)
 	dis, err := Discoveries[zkName](config)
+	conn := dis.(*ZookeeperDiscoverer).zkConn
+	removeZkService(t, conn)
 	assert.Nil(t, err)
 	headers := []string{utils.EventAdd, "/apisix/routes/1", zkService}
 	query, err := comm.NewQuery(headers, map[string]string{})
 	assert.Nil(t, err)
 	err = dis.Query(&query)
-	assert.Nil(t, err)
+	time.Sleep(time.Second * time.Duration(2))
+	assert.NotNil(t, err)
 	msg := dis.Watch()
+	createZkService(t, conn)
 	zkDiscovererRegister(t, msg)
+	time.Sleep(time.Second * time.Duration(2))
+	updateZkService(t, conn)
 	zkDiscovererUpdate(t, msg)
+	time.Sleep(time.Second * time.Duration(2))
+	removeZkService(t, conn)
 	zkDiscovererRemove(t, msg)
 }
 
@@ -104,7 +98,6 @@ func zkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
 }
 
 func zkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
-	updateZkService(t)
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
 	for node := range nodes {
@@ -114,7 +107,6 @@ func zkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
 }
 
 func zkDiscovererRemove(t *testing.T, msg chan *comm.Message) {
-	removeZkService(t)
 	m := <-msg
 	_, _, nodes, _ := m.Decode()
 	assert.Nil(t, nodes)
