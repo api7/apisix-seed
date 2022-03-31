@@ -201,7 +201,7 @@ func (zd *ZookeeperDiscoverer) initZookeeperRoot() error {
 	return nil
 }
 
-// newZookeeperClient grantate zookeeper client
+// newZookeeperClient generate zookeeper client
 func (zd *ZookeeperDiscoverer) newZookeeperClient(serviceName string) (*ZookeeperService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	watchPath := zd.zkConfig.Prefix + "/" + serviceName
@@ -233,7 +233,7 @@ func (zd *ZookeeperDiscoverer) watchServicePrefix() {
 			serviceNames, _, err = zd.zkConn.Children(zd.zkConfig.Prefix)
 			if err != nil {
 				log.Errorf("fetch service prefix: %s fail, err: %s", zd.zkConfig.Prefix, err)
-				return
+				continue
 			}
 
 			for _, serviceName := range serviceNames {
@@ -273,7 +273,7 @@ func (zd *ZookeeperDiscoverer) watchService(service *ZookeeperService) {
 			case zk.EventNodeDeleted:
 				err = zd.removeService(service.Name)
 				if err != nil {
-					log.Infof("remove service: %s remove fail", err)
+					log.Errorf("remove service: %s remove fail", err)
 				}
 			}
 		}
@@ -285,7 +285,7 @@ func (zd *ZookeeperDiscoverer) removeWatchService(service *ZookeeperService) {
 	service.WatchCancel()
 	zd.zkWatchServices.Delete(service.Name)
 	zd.zkUnWatchServices.LoadOrStore(service.Name, service.BindEntities)
-	log.Infof("start watch service: %s", service.Name)
+	log.Infof("stop watch service: %s", service.Name)
 }
 
 // addWatchService add watch service
@@ -293,5 +293,5 @@ func (zd *ZookeeperDiscoverer) addWatchService(service *ZookeeperService) {
 	zd.zkWatchServices.LoadOrStore(service.Name, service)
 	zd.zkUnWatchServices.Delete(service.Name)
 	go zd.watchService(service)
-	log.Infof("stop watch service: %s", service.Name)
+	log.Infof("start watch service: %s", service.Name)
 }

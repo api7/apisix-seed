@@ -11,11 +11,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var zkName = "zookeeper"
-var zkPrefix = "/zookeeper"
-var zkService = "svc"
-var zkNode1 = "{\"host\":\"127.0.0.1:1980\",\"weight\":100}"
-var zkNode2 = "{\"host\":\"127.0.0.1:1981\",\"weight\":100}"
 var zkYamlConfig = `
 hosts:
   - "127.0.0.1:2181"
@@ -24,39 +19,51 @@ weight: 100
 timeout: 10
 `
 
-func GetZkConfig(t *testing.T) *conf.Zookeeper {
+func getZkConfig() (*conf.Zookeeper, error) {
 	zkConf := &conf.Zookeeper{}
 	err := yaml.Unmarshal([]byte(zkYamlConfig), zkConf)
-	assert.Nil(t, err)
-
-	return zkConf
+	if err != nil {
+		return nil, err
+	}
+	return zkConf, nil
 }
 
-func updateZkService(t *testing.T, conn *zk.Conn) {
-	svcPath := zkPrefix + "/" + zkService
-	_, stat, err := conn.Get(svcPath)
-	assert.Nil(t, err)
-	_, err = conn.Set(svcPath, []byte(zkNode2), stat.Version)
-	assert.Nil(t, err)
-}
-
-func createZkService(t *testing.T, conn *zk.Conn) {
-	_, err := conn.Create(zkPrefix+"/"+zkService, []byte(zkNode1), 0, zk.WorldACL(zk.PermAll))
-	assert.Nil(t, err)
-}
-
-func removeZkService(t *testing.T, conn *zk.Conn) {
-	svcPath := zkPrefix + "/" + zkService
+func updateZkService(conn *zk.Conn, svcPath string, svcNode string) error {
 	_, stat, err := conn.Get(svcPath)
 	if err != nil {
-		return
+		return err
 	}
-	err = conn.Delete(zkPrefix+"/"+zkService, stat.Version)
-	assert.Nil(t, err)
+	_, err = conn.Set(svcPath, []byte(svcNode), stat.Version)
+	return err
+}
+
+func createZkService(conn *zk.Conn, svcPath string, svcNode string) error {
+	_, err := conn.Create(svcPath, []byte(svcNode), 0, zk.WorldACL(zk.PermAll))
+	return err
+}
+
+func removeZkService(conn *zk.Conn, svcPath string) error {
+	_, stat, err := conn.Get(svcPath)
+	if err != nil {
+		// Does not exist and returns nil
+		return nil
+	}
+	err = conn.Delete(svcPath, stat.Version)
+	return err
+}
+
+func getNode(msg chan *comm.Message) string {
+	m := <-msg
+	_, _, nodes, _ := m.Decode()
+	for node := range nodes {
+		return node
+	}
+	return ""
 }
 
 func TestNewZkDiscoverer(t *testing.T) {
-	config := GetZkConfig(t)
+	config, err := getZkConfig()
+	assert.Nil(t, err)
 	assert.NotNil(t, config)
 	dis, err := NewZookeeperDiscoverer(config)
 	assert.Nil(t, err)
@@ -64,46 +71,41 @@ func TestNewZkDiscoverer(t *testing.T) {
 }
 
 func TestZkDiscoverer(t *testing.T) {
-	config := GetZkConfig(t)
-	assert.NotNil(t, config)
-	dis, err := Discoveries[zkName](config)
-	conn := dis.(*ZookeeperDiscoverer).zkConn
-	removeZkService(t, conn)
+	config, err := getZkConfig()
 	assert.Nil(t, err)
-	headers := []string{utils.EventAdd, "/apisix/routes/1", zkService}
+	assert.NotNil(t, config)
+
+	var dis Discoverer
+	dis, err = Discoveries["zookeeper"](config)
+	assert.Nil(t, err)
+
+	conn := dis.(*ZookeeperDiscoverer).zkConn
+	svcName := "svc"
+	svcPath := "/zookeeper/" + svcName
+	// clear zookeeper service
+	err = removeZkService(conn, svcPath)
+	assert.Nil(t, err)
+
+	headers := []string{utils.EventAdd, "/apisix/routes/1", svcName}
 	query, err := comm.NewQuery(headers, map[string]string{})
 	assert.Nil(t, err)
+
 	err = dis.Query(&query)
 	assert.NotNil(t, err)
 	msg := dis.Watch()
-	createZkService(t, conn)
-	zkDiscovererRegister(t, msg)
-	updateZkService(t, conn)
-	zkDiscovererUpdate(t, msg)
-	removeZkService(t, conn)
-	zkDiscovererRemove(t, msg)
-}
 
-func zkDiscovererRegister(t *testing.T, msg chan *comm.Message) {
-	m := <-msg
-	_, _, nodes, _ := m.Decode()
-	for node := range nodes {
-		assert.Equal(t, node, "127.0.0.1:1980")
-		return
-	}
-}
+	// create service
+	err = createZkService(conn, svcPath, "{\"host\":\"127.0.0.1:1980\",\"weight\":100}")
+	assert.Nil(t, err)
+	assert.Equal(t, getNode(msg), "127.0.0.1:1980")
 
-func zkDiscovererUpdate(t *testing.T, msg chan *comm.Message) {
-	m := <-msg
-	_, _, nodes, _ := m.Decode()
-	for node := range nodes {
-		assert.Equal(t, node, "127.0.0.1:1981")
-		return
-	}
-}
+	// update service
+	err = updateZkService(conn, svcPath, "{\"host\":\"127.0.0.1:1981\",\"weight\":100}")
+	assert.Nil(t, err)
+	assert.Equal(t, getNode(msg), "127.0.0.1:1981")
 
-func zkDiscovererRemove(t *testing.T, msg chan *comm.Message) {
-	m := <-msg
-	_, _, nodes, _ := m.Decode()
-	assert.Nil(t, nodes)
+	// remove service
+	err = removeZkService(conn, svcPath)
+	assert.Nil(t, err)
+	assert.Equal(t, getNode(msg), "")
 }
