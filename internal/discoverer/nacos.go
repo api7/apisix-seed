@@ -325,11 +325,12 @@ func (d *NacosDiscoverer) newClient(namespace string) error {
 		}
 
 		clientConfig := constant.ClientConfig{
-			TimeoutMs:           d.timeout,
-			NamespaceId:         namespace,
-			Username:            username,
-			Password:            password,
-			NotLoadCacheAtStart: true,
+			TimeoutMs:            d.timeout,
+			NamespaceId:          namespace,
+			Username:             username,
+			Password:             password,
+			NotLoadCacheAtStart:  true,
+			UpdateCacheWhenEmpty: true,
 		}
 		client, err := clients.NewNamingClient(
 			vo.NacosClientParam{
