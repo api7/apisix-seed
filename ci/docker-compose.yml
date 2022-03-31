@@ -49,7 +49,7 @@ services:
     ports:
       - "2181:2181/tcp"
     networks:
-      apisix_net:
+      apisix-seed:
         ipv4_address: 172.50.238.40
 
 networks:
