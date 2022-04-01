@@ -6,7 +6,7 @@
 *.dll
 *.so
 *.dylib
-apisix-seed
+/apisix-seed
 
 # Test binary, built with `go test -c`
 *.test
