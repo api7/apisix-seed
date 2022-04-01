@@ -42,6 +42,20 @@ services:
       apisix-seed:
         ipv4_address: 172.50.238.30
 
+  apisix_seed_dev:
+    build:
+      context: ./..
+      dockerfile: Dockerfile.local
+    restart: always
+    volumes:
+      - ./apisix-seed/conf.yaml:/usr/local/apisix-seed/conf/conf.yaml:ro
+    depends_on:
+      - etcd
+      - nacos_no_auth
+    networks:
+      apisix-seed:
+        ipv4_address: 172.50.238.40
+
 networks:
   apisix-seed:
     driver: bridge
