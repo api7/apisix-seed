@@ -78,21 +78,24 @@ func (zd *ZookeeperDiscoverer) Watch() chan *comm.Message {
 
 // fetchService fetch service watch and send message notify
 func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entities []string) error {
+	var service *ZookeeperService
 	zkService, ok := zd.zkWatchServices.Load(serviceName)
 
-	if !ok {
+	if ok {
+		service = zkService.(*ZookeeperService)
+	} else {
 		var err error
-		zkService, err = zd.newZookeeperClient(serviceName)
+		service, err = zd.newZookeeperClient(serviceName)
 		if err != nil {
 			return err
 		}
 
-		zd.addWatchService(zkService.(*ZookeeperService))
+		zd.addWatchService(service)
 	}
 
 	for _, entity := range entities {
 		entryExists := false
-		for _, bindEntry := range zkService.(*ZookeeperService).BindEntities {
+		for _, bindEntry := range service.BindEntities {
 			if entity == bindEntry {
 				entryExists = true
 				break
@@ -100,11 +103,11 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entities []strin
 		}
 
 		if !entryExists {
-			zkService.(*ZookeeperService).BindEntities = append(zkService.(*ZookeeperService).BindEntities, entity)
+			service.BindEntities = append(service.BindEntities, entity)
 		}
 	}
 
-	serviceInfo, _, err := zd.zkConn.Get(zkService.(*ZookeeperService).WatchPath)
+	serviceInfo, _, err := zd.zkConn.Get(service.WatchPath)
 	if err != nil {
 		return err
 	}
@@ -115,7 +118,7 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entities []strin
 		return err
 	}
 
-	zd.sendMessage(zkService.(*ZookeeperService), []Node{node})
+	zd.sendMessage(service, []Node{node})
 
 	return nil
 }
