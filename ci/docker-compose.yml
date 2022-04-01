@@ -64,7 +64,7 @@ services:
       - nacos_no_auth
     networks:
       apisix-seed:
-        ipv4_address: 172.50.238.40
+        ipv4_address: 172.50.238.50
 
 networks:
   apisix-seed:
