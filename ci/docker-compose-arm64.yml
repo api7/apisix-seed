@@ -53,7 +53,6 @@ services:
     volumes:
       - ./apisix-seed/conf.yaml:/usr/local/apisix-seed/conf/conf.yaml:ro
     depends_on:
-      - apisix
       - etcd
       - nacos_no_auth
     networks:
