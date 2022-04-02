@@ -18,3 +18,4 @@
 # vendor/
 
 coverage.txt
+conf/conf-*.yaml

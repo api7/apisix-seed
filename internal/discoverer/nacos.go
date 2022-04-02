@@ -242,8 +242,8 @@ func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node,
 		}
 
 		nodes[i] = Node{
-			host:   address,
-			weight: weight,
+			Host:   address,
+			Weight: weight,
 		}
 	}
 
@@ -261,8 +261,8 @@ func (d *NacosDiscoverer) newSubscribeCallback(serviceId string) func([]model.Su
 			}
 
 			nodes[i] = Node{
-				host:   address,
-				weight: weight,
+				Host:   address,
+				Weight: weight,
 			}
 		}
 
