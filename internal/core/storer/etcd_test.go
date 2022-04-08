@@ -118,8 +118,8 @@ func testWatch(t *testing.T, client *EtcdV3) {
 	msgsCh := client.Watch(context.Background(), prefix)
 	// update loop
 	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		time.Sleep(500 * time.Millisecond)
 

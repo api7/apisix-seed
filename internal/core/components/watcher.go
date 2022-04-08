@@ -33,7 +33,7 @@ func (w *Watcher) Init() {
 		if err != nil {
 			panic(fmt.Sprintf("storer list error: %v", err))
 		}
-		if msgs == nil || len(msgs) == 0 {
+		if len(msgs) == 0 {
 			continue
 		}
 		wg := sync.WaitGroup{}
