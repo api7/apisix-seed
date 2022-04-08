@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/conf"
+
 	"github.com/api7/apisix-seed/internal/log"
-	"github.com/api7/apisix-seed/internal/utils"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -89,7 +91,7 @@ func (s *EtcdV3) Get(ctx context.Context, key string) (string, error) {
 }
 
 // List the content of a given prefix
-func (s *EtcdV3) List(ctx context.Context, prefix string) (utils.Message, error) {
+func (s *EtcdV3) List(ctx context.Context, prefix string) ([]*message.Message, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -108,12 +110,17 @@ func (s *EtcdV3) List(ctx context.Context, prefix string) (utils.Message, error)
 		resp.Kvs = resp.Kvs[1:]
 	}
 
-	ret := make(utils.Message, 0, len(resp.Kvs))
+	msgs := make([]*message.Message, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		ret.Add(string(kv.Key), string(kv.Value))
+		msg, err := message.NewMessage(string(kv.Key), kv.Value, message.EventAdd)
+		if err != nil {
+			log.Errorf("etcd list prefix[%s] format failed: %s", prefix, err)
+			continue
+		}
+		msgs = append(msgs, msg)
 	}
 
-	return ret, nil
+	return msgs, nil
 }
 
 // Create a value at the specified key
@@ -181,15 +188,15 @@ func (s *EtcdV3) DeletePrefix(ctx context.Context, prefix string) error {
 }
 
 // Watch for changes on a key
-func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *StoreEvent {
-	eventChan := s.client.Watch(ctx, key, clientv3.WithPrefix())
-	ch := make(chan *StoreEvent, 1)
+func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Message {
+	eventChan := s.client.Watch(ctx, prefix, clientv3.WithPrefix())
+	ch := make(chan []*message.Message, 1)
 
 	go func() {
 		defer close(ch)
 
 		for event := range eventChan {
-			storeEvent := NewStoreEvent(event.Canceled)
+			msgs := make([]*message.Message, 0, 16)
 
 			for _, ev := range event.Events {
 				// We use a placeholder to mark a key to be a directory. So we need to skip the hack here.
@@ -198,23 +205,24 @@ func (s *EtcdV3) Watch(ctx context.Context, key string) <-chan *StoreEvent {
 				}
 
 				key := string(ev.Kv.Key)
-				value := string(ev.Kv.Value)
 
-				var typ string
+				var typ message.StoreEvent
 				switch ev.Type {
 				case clientv3.EventTypePut:
-					typ = utils.EventAdd
+					typ = message.EventAdd
 				case clientv3.EventTypeDelete:
-					typ = utils.EventDelete
+					typ = message.EventDelete
 				}
 
-				if err := storeEvent.Add(typ, key, value); err != nil { // add /apisix/routes/9  data
+				msg, err := message.NewMessage(key, ev.Kv.Value, typ)
+				if err != nil {
 					log.Warnf("etcd watch key[%s]'s %s event failed: %s", key, typ, err)
 					continue
 				}
+				msgs = append(msgs, msg)
 			}
 
-			ch <- &storeEvent
+			ch <- msgs
 		}
 	}()
 

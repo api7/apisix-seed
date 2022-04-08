@@ -3,11 +3,13 @@ package storer
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +18,6 @@ var host = "localhost:2379" // nolint:unused
 func TestEtcdV3(t *testing.T) {
 	// Make sure that etcd is installed in your test environment
 	// Then comment out the following statement
-	t.SkipNow()
 
 	client, err := NewEtcd(&conf.Etcd{Host: []string{host}})
 	assert.Nil(t, err, "Test create etcd client")
@@ -61,11 +62,12 @@ func testCommon(t *testing.T, client *EtcdV3) {
 
 		// Delete the non-existing key
 		err = client.Delete(context.Background(), key)
-		wantErr := fmt.Errorf("key: %s is not found", key)
+		wantErr := fmt.Errorf("etcd delete key[%s] is not found", key)
 		assert.Equal(t, wantErr, err, "Test delete non-existing key")
 
 		// Get should fail
 		_, err = client.Get(context.Background(), key)
+		wantErr = fmt.Errorf("etcd get key[%s] is not found", key)
 		assert.Equal(t, wantErr, err, "Test get non-existing key")
 	}
 }
@@ -73,16 +75,16 @@ func testCommon(t *testing.T, client *EtcdV3) {
 // nolint:unused
 func testList(t *testing.T, client *EtcdV3) {
 	prefix := "testList"
-	firstKey, firstValue := "testList/first", "first"
-	secondKey, secondValue := "testList/second", "second"
-	dirPlaceholderKey, dirPlaceholderValue := "testList/", "init_dir"
+	kvs := map[string]string{
+		"testList/first":  getA6Conf("first"),
+		"testList/second": getA6Conf("second"),
+		"testList/":       "init_dir",
+	}
 
-	err := client.Create(context.Background(), firstKey, firstValue)
-	assert.Nil(t, err)
-	err = client.Create(context.Background(), secondKey, secondValue)
-	assert.Nil(t, err)
-	err = client.Create(context.Background(), dirPlaceholderKey, dirPlaceholderValue)
-	assert.Nil(t, err)
+	for k, v := range kvs {
+		err := client.Create(context.Background(), k, v)
+		assert.Nil(t, err)
+	}
 
 	for _, parent := range []string{prefix, prefix + "/"} {
 		pairs, err := client.List(context.Background(), parent)
@@ -90,22 +92,18 @@ func testList(t *testing.T, client *EtcdV3) {
 		assert.Len(t, pairs, 2, "Test list content")
 
 		for _, pair := range pairs {
-			switch pair.Key {
-			case firstKey:
-				assert.Equal(t, firstKey, pair.Value)
-			case secondKey:
-				assert.Equal(t, secondKey, pair.Value)
-			case dirPlaceholderKey:
+			if pair.Key == "dirPlaceholderKey" {
 				assert.Fail(t, "should be skipped")
 			}
+			assert.Equal(t, kvs[pair.Key], pair.Value)
 		}
 	}
 
-	err = client.DeletePrefix(context.Background(), prefix)
+	err := client.DeletePrefix(context.Background(), prefix)
 	assert.Nil(t, err, "Test delete prefix")
 
 	// List should fail
-	wantErr := fmt.Errorf("prefix: %s is not found", prefix)
+	wantErr := fmt.Errorf("etcd list prefix[%s] is not found", prefix)
 	pairs, err := client.List(context.Background(), prefix)
 	assert.Equal(t, wantErr, err, "Test list non-existing prefix")
 	assert.Nil(t, pairs)
@@ -114,13 +112,15 @@ func testList(t *testing.T, client *EtcdV3) {
 // nolint:unused
 func testWatch(t *testing.T, client *EtcdV3) {
 	prefix := "testWatch"
-	key, value := "testWatch/node", "node"
+	key, value := "testWatch/node", getA6Conf("node")
 	dirPlaceholderKey, dirPlaceholderValue := "testWatch/", "init_dir"
 
-	events := client.Watch(context.Background(), prefix)
-
+	msgsCh := client.Watch(context.Background(), prefix)
 	// update loop
+	wg := sync.WaitGroup{}
 	go func() {
+		wg.Add(1)
+		defer wg.Done()
 		time.Sleep(500 * time.Millisecond)
 
 		err := client.Create(context.Background(), key, value)
@@ -134,35 +134,43 @@ func testWatch(t *testing.T, client *EtcdV3) {
 	}()
 
 	eventCount := 0
+	addFlag, delFlag := false, false
 	for {
 		select {
-		case event := <-events:
-			assert.NotNil(t, event)
-			assert.Nil(t, event.Error)
-			assert.Len(t, event.Events, 1)
-
-			vals, err := event.Decode()
-			assert.Nil(t, err)
-			val := vals[0]
-
-			if eventCount == 0 {
-				assert.Equal(t, utils.EventAdd, val[0])
-			} else if eventCount == 1 {
-				assert.Equal(t, utils.EventDelete, val[0])
-			} else if eventCount == 2 {
-				assert.Fail(t, "should be skipped")
+		case msgs := <-msgsCh:
+			eventCount += len(msgs)
+			assert.True(t, eventCount < 3)
+			for _, msg := range msgs {
+				switch msg.Action {
+				case message.EventAdd:
+					addFlag = true
+				case message.EventDelete:
+					delFlag = true
+				}
+				assert.Equal(t, key, msg.Key)
 			}
-
-			assert.Equal(t, key, val[1])
-			assert.Equal(t, val, val[2])
-
-			eventCount += 1
-			// We received all the events we wanted to check
-			if eventCount == 3 {
+			if addFlag && delFlag {
+				wg.Wait()
 				return
 			}
 		case <-time.After(5 * time.Second):
 			assert.True(t, false, "Test watch timeout reached")
+			return
 		}
 	}
+
+}
+
+func getA6Conf(uri string) string {
+	a6fmt := `{
+		"uri": "%s",
+			"upstream": {
+                "discovery_type": "nacos",
+				"service_name": "APISIX-NACOS",
+				"discovery_args": {
+				"group_name": "DEFAULT_GROUP"
+			}
+		}
+	}`
+	return fmt.Sprintf(a6fmt, uri)
 }

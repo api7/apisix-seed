@@ -3,10 +3,10 @@ name: lint
 on:
   push:
     branches:
-      - main
+      - refactor/message
   pull_request:
     branches:
-      - main
+      - refactor/message
 
 jobs:
   golang-lint:

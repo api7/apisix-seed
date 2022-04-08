@@ -2,11 +2,9 @@ package storer
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/core/entity"
 	"github.com/api7/apisix-seed/internal/log"
 )
 
@@ -27,7 +25,6 @@ func InitStores(stg Interface) (err error) {
 	err = InitStore("routes", GenericStoreOption{
 		BasePath: conf.ETCDConfig.Prefix + "/routes",
 		Prefix:   conf.ETCDConfig.Prefix,
-		ObjType:  reflect.TypeOf(entity.Route{}),
 	}, stg)
 	if err != nil {
 		return
@@ -36,7 +33,6 @@ func InitStores(stg Interface) (err error) {
 	err = InitStore("services", GenericStoreOption{
 		BasePath: conf.ETCDConfig.Prefix + "/services",
 		Prefix:   conf.ETCDConfig.Prefix,
-		ObjType:  reflect.TypeOf(entity.Service{}),
 	}, stg)
 	if err != nil {
 		return
@@ -45,7 +41,6 @@ func InitStores(stg Interface) (err error) {
 	err = InitStore("upstreams", GenericStoreOption{
 		BasePath: conf.ETCDConfig.Prefix + "/upstreams",
 		Prefix:   conf.ETCDConfig.Prefix,
-		ObjType:  reflect.TypeOf(entity.Upstream{}),
 	}, stg)
 	if err != nil {
 		return

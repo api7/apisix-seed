@@ -1,293 +1,174 @@
 package components
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/api7/apisix-seed/internal/core/comm"
-	"github.com/api7/apisix-seed/internal/core/entity"
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
-	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestWatcherInit(t *testing.T) {
-	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
-		"mock": discoverer.NewDiscovererMock,
-	}
-	_ = discoverer.InitDiscoverer("mock", nil)
+	caseDesc := "test WatcherInit"
 
-	giveOpt := storer.GenericStoreOption{
-		BasePath: "/prefix/mock",
+	givenOpt := storer.GenericStoreOption{
+		BasePath: "/prefix/mocks",
 		Prefix:   "/prefix",
-		ObjType:  reflect.TypeOf(entity.Route{}),
 	}
-	giveListRet := utils.Message{
-		{
-			Key:   "/prefix/mock/demo1",
-			Value: `{"upstream":{"service_name": "test_service", "discovery_type": "mock"}}`,
-		},
-	}
-	wantValues := []string{utils.EventAdd, "/prefix/mock/demo1", "test_service"}
 
-	discover := discoverer.GetDiscoverer("mock")
-	mDiscover := discover.(interface{}).(*discoverer.MockInterface)
-	mDiscover.On("Query", mock.Anything).Run(func(args mock.Arguments) {
-		values, arg, err := args[0].(*comm.Query).Decode()
-		assert.Nil(t, err)
-		assert.Equal(t, wantValues, values)
-		assert.Nil(t, arg)
+	givenKey := "/prefix/mocks/1"
+	givenA6Str := `{
+    "uri": "/nacosWithNamespaceId/*",
+    "upstream": {
+        "service_name": "APISIX-NACOS",
+        "type": "roundrobin",
+        "discovery_type": "mock_nacos",
+        "discovery_args": {
+          "group_name": "DEFAULT_GROUP"
+        }
+    }
+}`
 
-	}).Return(nil)
-
+	// inject mock function
 	mStg := &storer.MockInterface{}
 	mStg.On("List", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		assert.Equal(t, giveOpt.BasePath, args[0])
-	}).Return(giveListRet, nil)
+		assert.Equal(t, givenOpt.BasePath, args[0])
+	}).Return(func() []*message.Message {
+		msg, err := message.NewMessage(givenKey, []byte(givenA6Str), message.EventAdd)
+		assert.Nil(t, err, caseDesc)
+		return []*message.Message{msg}
+	}(), nil)
 
 	storer.ClrearStores()
+	// init store
+	err := storer.InitStore("mocks", givenOpt, mStg)
+	assert.Nil(t, err, caseDesc)
 
-	err := storer.InitStore("mock", giveOpt, mStg)
-	assert.Nil(t, err)
+	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
+		"mock_nacos": discoverer.NewDiscovererMock,
+	}
+	_ = discoverer.InitDiscoverer("mock_nacos", nil)
+
+	discover := discoverer.GetDiscoverer("mock_nacos")
+	mDiscover := discover.(interface{}).(*discoverer.MockInterface)
+	mDiscover.On("Query", mock.Anything).Run(func(args mock.Arguments) {
+		msg := args[0].(*message.Message)
+		assert.Equal(t, givenKey, msg.Key)
+		assert.Equal(t, "APISIX-NACOS", msg.ServiceName())
+		assert.Equal(t, "mock_nacos", msg.DiscoveryType())
+		assert.Equal(t, "DEFAULT_GROUP", msg.DiscoveryArgs()["group_name"])
+
+	}).Return(nil)
 
 	watcher := Watcher{}
 	watcher.Init()
 }
 
 func TestWatcherWatch(t *testing.T) {
-	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
-		"mock": discoverer.NewDiscovererMock,
-	}
-	_ = discoverer.InitDiscoverer("mock", nil)
-
-	giveOpt := storer.GenericStoreOption{
-		BasePath: "/prefix/mock",
-		Prefix:   "/prefix",
-		ObjType:  reflect.TypeOf(entity.Route{}),
-	}
-
-	watchCh := make(chan *storer.StoreEvent)
+	watchCh := make(chan []*message.Message)
 	mStg := &storer.MockInterface{}
 	mStg.On("Watch", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {}).Return(watchCh)
 
 	storer.ClrearStores()
 
-	err := storer.InitStore("mock", giveOpt, mStg)
-	assert.Nil(t, err)
+	caseDesc := "Test watcher watch"
+	givenOpt := storer.GenericStoreOption{
+		BasePath: "/prefix/mocks",
+		Prefix:   "/prefix",
+	}
+	err := storer.InitStore("mocks", givenOpt, mStg)
+	assert.Nil(t, err, caseDesc)
 
-	quries := make([]*comm.Query, 0)
-	updates := make([]*comm.Update, 0)
-	doneCh := make(chan struct{})
+	discoverer.Discoveries = map[string]discoverer.NewDiscoverFunc{
+		"mock_nacos": discoverer.NewDiscovererMock,
+		"mock_zk":    discoverer.NewDiscovererMock,
+	}
+	_ = discoverer.InitDiscoverer("mock_nacos", nil)
+	nDiscover := discoverer.GetDiscoverer("mock_nacos").(*discoverer.MockInterface)
+	_ = discoverer.InitDiscoverer("mock_zk", nil)
+	zDiscover := discoverer.GetDiscoverer("mock_zk").(*discoverer.MockInterface)
 
-	_ = discoverer.InitDiscoverer("mock", nil)
-	discover := discoverer.GetDiscoverer("mock")
-	mDiscover := discover.(interface{}).(*discoverer.MockInterface)
-	mDiscover.On("Query", mock.Anything).Run(func(args mock.Arguments) {
-		quries = append(quries, args[0].(*comm.Query))
-		doneCh <- struct{}{}
+	givenKey := "/prefix/mocks/1"
+
+	nDiscover.On("Query", mock.Anything).Run(func(args mock.Arguments) {
+		msg := args[0].(*message.Message)
+		assert.Equal(t, "APISIX-NACOS", msg.ServiceName(), caseDesc)
+		assert.Equal(t, "DEFAULT_GROUP", msg.DiscoveryArgs()["group_name"], caseDesc)
 	}).Return(nil)
-	mDiscover.On("Update", mock.Anything).Run(func(args mock.Arguments) {
-		updates = append(updates, args[0].(*comm.Update))
-		doneCh <- struct{}{}
+
+	nDiscover.On("Update", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		oldMsg := args[0].(*message.Message)
+		newMsg := args[1].(*message.Message)
+		assert.Equal(t, "APISIX-NACOS", oldMsg.ServiceName(), caseDesc)
+		assert.Equal(t, "DEFAULT_GROUP", oldMsg.DiscoveryArgs()["group_name"], caseDesc)
+		assert.Equal(t, "APISIX-NACOS", newMsg.ServiceName(), caseDesc)
+		assert.Equal(t, "NEWDEFAULT_GROUP", newMsg.DiscoveryArgs()["group_name"], caseDesc)
+	}).Return(nil)
+	nDiscover.On("Delete", mock.Anything).Run(func(args mock.Arguments) {
+		msg := args[0].(*message.Message)
+		assert.Equal(t, "APISIX-NACOS", msg.ServiceName(), caseDesc)
+		assert.Equal(t, "NEWDEFAULT_GROUP", msg.DiscoveryArgs()["group_name"], caseDesc)
+	}).Return(nil)
+
+	zDiscover.On("Query", mock.Anything).Run(func(args mock.Arguments) {
+		msg := args[0].(*message.Message)
+		assert.Equal(t, "APISIX-ZK", msg.ServiceName(), caseDesc)
+	}).Return(nil)
+	zDiscover.On("Delete", mock.Anything).Run(func(args mock.Arguments) {
+		msg := args[0].(*message.Message)
+		assert.Equal(t, "APISIX-ZK", msg.ServiceName(), caseDesc)
 	}).Return(nil)
 
 	watcher := Watcher{}
 	watcher.sem = make(chan struct{}, 10)
 	watcher.Watch()
 
-	caseDesc := "Test add new service information"
-	giveEvent := utils.EventAdd
-	giveKey := "/prefix/mock/demo1"
-	giveValue := `{"upstream":{"service_name": "test_service", "discovery_type": "mock"}}`
-
-	watchMsg := storer.NewStoreEvent(false)
-	err = watchMsg.Add(giveEvent, giveKey, giveValue)
+	givenA6Str := `{
+    "uri": "/hh/*",
+    "upstream": {
+        "service_name": "APISIX-NACOS",
+        "type": "roundrobin",
+        "discovery_type": "mock_nacos",
+        "discovery_args": {
+            "group_name": "DEFAULT_GROUP"
+        }
+    }
+}`
+	queryMsg, err := message.NewMessage(givenKey, []byte(givenA6Str), message.EventAdd)
 	assert.Nil(t, err, caseDesc)
+	watchCh <- []*message.Message{queryMsg}
 
-	watchCh <- &watchMsg
-	<-doneCh
-
-	wantValues := []string{utils.EventAdd, giveKey, "test_service"}
-	values, arg, err := quries[0].Decode()
+	givenUpdatedA6Str := `{
+    "uri": "/hh/*",
+    "upstream": {
+        "service_name": "APISIX-NACOS",
+        "type": "roundrobin",
+        "discovery_type": "mock_nacos",
+        "discovery_args": {
+            "group_name": "NEWDEFAULT_GROUP"
+        }
+    }
+}`
+	updateMsg, err := message.NewMessage(givenKey, []byte(givenUpdatedA6Str), message.EventAdd)
 	assert.Nil(t, err, caseDesc)
-	assert.Equal(t, wantValues, values, caseDesc)
-	assert.Nil(t, arg, caseDesc)
+	watchCh <- []*message.Message{updateMsg}
 
-	caseDesc = "Test update service information"
-	giveValue = `{"upstream": {
-		"service_name": "test_service",
-		"discovery_type": "mock",
-		"discovery_args": {
-			"group_name": "test_group"
-		}
-	}}`
-	watchMsg = storer.NewStoreEvent(false)
-	err = watchMsg.Add(giveEvent, giveKey, giveValue)
+	givenReplacedA6Str := `{
+    "uri": "/hh/*",
+    "upstream": {
+        "service_name": "APISIX-ZK",
+        "type": "roundrobin",
+        "discovery_type": "mock_zk"
+    }
+}`
+	replaceMsg, err := message.NewMessage(givenKey, []byte(givenReplacedA6Str), message.EventAdd)
 	assert.Nil(t, err, caseDesc)
+	watchCh <- []*message.Message{replaceMsg}
 
-	watchCh <- &watchMsg
-	<-doneCh
-
-	wantValues = []string{utils.EventUpdate, "test_service"}
-	var wantOldArgs map[string]string = nil
-	wantNewArgs := map[string]string{
-		"group_name":   "test_group",
-		"namespace_id": "",
-	}
-	values, oldArgs, newArgs, err := updates[0].Decode()
+	deleteMsg, err := message.NewMessage(givenKey, nil, message.EventDelete)
 	assert.Nil(t, err, caseDesc)
-	assert.Equal(t, wantValues, values, caseDesc)
-	assert.Equal(t, wantOldArgs, oldArgs, caseDesc)
-	assert.Equal(t, wantNewArgs, newArgs, caseDesc)
-
-	caseDesc = "Test replace service information"
-	giveValue = `{"upstream":{"service_name": "test_service2", "discovery_type": "mock"}}`
-
-	watchMsg = storer.NewStoreEvent(false)
-	err = watchMsg.Add(giveEvent, giveKey, giveValue)
-	assert.Nil(t, err, caseDesc)
-
-	watchCh <- &watchMsg
-	<-doneCh
-	<-doneCh
-
-	wantValues = []string{utils.EventDelete, giveKey, "test_service"}
-	values, arg, err = quries[1].Decode()
-	assert.Nil(t, err, caseDesc)
-	assert.Equal(t, wantValues, values, caseDesc)
-	assert.Equal(t, wantNewArgs, arg, caseDesc)
-
-	wantValues = []string{utils.EventAdd, giveKey, "test_service2"}
-	values, arg, err = quries[2].Decode()
-	assert.Nil(t, err, caseDesc)
-	assert.Equal(t, wantValues, values, caseDesc)
-	assert.Nil(t, arg, caseDesc)
-
-	caseDesc = "Test delete service information"
-	giveEvent = utils.EventDelete
-	giveValue = `{"upstream":{"service_name": "test_service2", "discovery_type": "mock"}}`
-
-	watchMsg = storer.NewStoreEvent(false)
-	err = watchMsg.Add(giveEvent, giveKey, giveValue)
-	assert.Nil(t, err, caseDesc)
-
-	watchCh <- &watchMsg
-	<-doneCh
-
-	wantValues = []string{utils.EventDelete, giveKey, "test_service2"}
-	values, arg, err = quries[3].Decode()
-	assert.Nil(t, err, caseDesc)
-	assert.Equal(t, wantValues, values, caseDesc)
-	assert.Nil(t, arg, caseDesc)
-}
-
-func TestEncodeQuery(t *testing.T) {
-	tests := []struct {
-		caseDesc   string
-		giveEvent  string
-		giveTyp    string
-		giveQueer  entity.Entity
-		wantValues []string
-		wantArgs   map[string]string
-	}{
-		{
-			caseDesc:  "add event",
-			giveEvent: utils.EventAdd,
-			giveTyp:   "upstream",
-			giveQueer: &entity.Upstream{
-				BaseInfo: entity.BaseInfo{
-					ID: "1",
-				},
-				UpstreamDef: entity.UpstreamDef{
-					ServiceName: "test",
-				},
-			},
-			wantValues: []string{utils.EventAdd, "upstream", "test"},
-			wantArgs:   nil,
-		},
-		{
-			caseDesc:  "delete event",
-			giveEvent: utils.EventDelete,
-			giveTyp:   "upstream",
-			giveQueer: &entity.Upstream{
-				BaseInfo: entity.BaseInfo{
-					ID: "1",
-				},
-				UpstreamDef: entity.UpstreamDef{
-					ServiceName: "test",
-					DiscoveryArgs: &entity.UpstreamArg{
-						GroupName: "test_group",
-					},
-				},
-			},
-			wantValues: []string{utils.EventDelete, "upstream", "test"},
-			wantArgs: map[string]string{
-				"group_name":   "test_group",
-				"namespace_id": "",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		query, err := encodeQuery(tc.giveEvent, tc.giveTyp, tc.giveQueer)
-		assert.Nil(t, err, tc.caseDesc)
-
-		values, args, err := query.Decode()
-		assert.Nil(t, err, tc.caseDesc)
-		assert.Equal(t, tc.wantValues, values, tc.caseDesc)
-		assert.Equal(t, tc.wantArgs, args, tc.caseDesc)
-	}
-}
-
-func TestEncodeUpdate(t *testing.T) {
-	tests := []struct {
-		caseDesc    string
-		giveOld     entity.Entity
-		giveNew     entity.Entity
-		wantValues  []string
-		wantOldArgs map[string]string
-		wantNewArgs map[string]string
-	}{
-		{
-			caseDesc: "sanity",
-			giveOld: &entity.Upstream{
-				BaseInfo: entity.BaseInfo{
-					ID: "1",
-				},
-				UpstreamDef: entity.UpstreamDef{
-					ServiceName: "test",
-				},
-			},
-			giveNew: &entity.Upstream{
-				BaseInfo: entity.BaseInfo{
-					ID: "1",
-				},
-				UpstreamDef: entity.UpstreamDef{
-					ServiceName: "test",
-					DiscoveryArgs: &entity.UpstreamArg{
-						GroupName: "test_group",
-					},
-				},
-			},
-			wantValues:  []string{utils.EventUpdate, "test"},
-			wantOldArgs: nil,
-			wantNewArgs: map[string]string{
-				"group_name":   "test_group",
-				"namespace_id": "",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		update, err := encodeUpdate(tc.giveOld, tc.giveNew)
-		assert.Nil(t, err, tc.caseDesc)
-
-		values, oldArgs, newArgs, err := update.Decode()
-		assert.Nil(t, err, tc.caseDesc)
-		assert.Equal(t, tc.wantValues, values, tc.caseDesc)
-		assert.Equal(t, tc.wantOldArgs, oldArgs, tc.caseDesc)
-		assert.Equal(t, tc.wantNewArgs, newArgs, tc.caseDesc)
-	}
+	watchCh <- []*message.Message{deleteMsg}
 }

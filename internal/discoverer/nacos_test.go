@@ -2,25 +2,42 @@ package discoverer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"os"
-	"path/filepath"
-	"strings"
+	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/api7/apisix-seed/internal/core/message"
+	"gopkg.in/yaml.v3"
+
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/core/comm"
-	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/nacos-group/nacos-sdk-go/clients"
-	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/vo"
 	"github.com/stretchr/testify/assert"
 )
 
-var registerClient naming_client.INamingClient
+var naYamlConfig = `
+host:
+  - "http://127.0.0.1:8848"
+prefix: ~
+`
+
+var naYamlConfigWithPasswd = `
+host:
+  - "https://username:password@console.nacos.io:8858"
+`
+
+func getNaConfig(str string) (*conf.Nacos, error) {
+	naConf := &conf.Nacos{}
+	err := yaml.Unmarshal([]byte(str), naConf)
+	if err != nil {
+		return nil, err
+	}
+	return naConf, nil
+}
+
 var TestService string
 var TestGroup string
 
@@ -31,8 +48,8 @@ func init() {
 }
 
 func TestServerConfig(t *testing.T) {
-	bc := ReadFile("host.yaml")
-	nacosConf, _ := conf.DisBuilders["nacos"](bc)
+	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
+	assert.Nil(t, err)
 	discoverer, err := NewNacosDiscoverer(nacosConf)
 	assert.Nil(t, err)
 	nacosDiscoverer := discoverer.(*NacosDiscoverer)
@@ -51,23 +68,13 @@ func TestServerConfig(t *testing.T) {
 }
 
 func TestNacosDiscoverer(t *testing.T) {
-	bc := ReadFile("discoverer.yaml")
-	nacosConf, _ := conf.DisBuilders["nacos"](bc)
+	nacosConf, err := getNaConfig(naYamlConfig)
+	assert.Nil(t, err)
 
 	discoverer, err := NewNacosDiscoverer(nacosConf)
 	assert.Nil(t, err)
-	nacosDiscoverer := discoverer.(*NacosDiscoverer)
-
-	// For register some services to test
-	registerClient, _ = clients.NewNamingClient(
-		vo.NacosClientParam{
-			ClientConfig:  &constant.ClientConfig{},
-			ServerConfigs: nacosDiscoverer.ServerConfigs[""],
-		},
-	)
 
 	testQueryService(t, discoverer)
-	testWatchService(t, discoverer)
 	testUpdateArgs(t, discoverer)
 	testDeleteService(t, discoverer)
 }
@@ -75,92 +82,86 @@ func TestNacosDiscoverer(t *testing.T) {
 func testQueryService(t *testing.T, discoverer Discoverer) {
 	registerService(t, "10.0.0.11", "")
 
-	query := newQuery(t, utils.EventAdd, nil)
-	watch := fmt.Sprintf(`key: event, value: update
-key: service, value: %s
-key: entity, value: upstream1
-key: node, value: 10.0.0.11:8848
-key: weight, value: 10`, TestService)
+	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s"}}`
+	a6Str := fmt.Sprintf(a6fmt, TestService)
+	expectA6StrFmt := `{
+	    "uri": "/hh",
+	    "upstream": {
+	        "nodes": [
+	            {"host":"%s","port": %d,"weight":%d}
+	        ],
+	        "_discovery_type":"nacos","_service_name":"%s"}}`
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), message.EventAdd)
+	assert.Nil(t, err)
 	tests := []struct {
 		caseDesc  string
-		giveQuery comm.Query
-		wantMsg   string
+		givenMsg  *message.Message
+		wantA6Str string
 	}{
 		{
 			caseDesc:  "Test query new service",
-			giveQuery: query,
-			wantMsg:   watch,
+			givenMsg:  msg,
+			wantA6Str: fmt.Sprintf(expectA6StrFmt, "10.0.0.11", 8848, 10, TestService),
 		},
 		{
-			caseDesc:  "Test query cached service",
-			giveQuery: query,
-			wantMsg:   watch,
+			caseDesc:  "Test query new service",
+			givenMsg:  msg,
+			wantA6Str: fmt.Sprintf(expectA6StrFmt, "10.0.0.11", 8848, 10, TestService),
 		},
 	}
 
 	for _, tc := range tests {
-		err := discoverer.Query(&tc.giveQuery)
+		err = discoverer.Query(tc.givenMsg)
 		assert.Nil(t, err)
 		watchMsg := <-discoverer.Watch()
-		assert.True(t, tc.wantMsg == watchMsg.String(), tc.caseDesc)
+		assert.JSONEq(t, tc.wantA6Str, naMsg2Value(watchMsg), tc.caseDesc)
 	}
-}
-
-func testWatchService(t *testing.T, discoverer Discoverer) {
-	// register a new instance of the service
-	registerService(t, "10.0.0.12", "")
-
-	caseDesc := "Test watch updated service"
-	wantMsgs := []string{
-		fmt.Sprintf(`key: event, value: update
-key: service, value: %s
-key: entity, value: upstream1
-key: node, value: 10.0.0.12:8848
-key: weight, value: 10
-key: node, value: 10.0.0.11:8848
-key: weight, value: 10`, TestService),
-		fmt.Sprintf(`key: event, value: update
-key: service, value: %s
-key: entity, value: upstream1
-key: node, value: 10.0.0.11:8848
-key: weight, value: 10
-key: node, value: 10.0.0.12:8848
-key: weight, value: 10`, TestService)}
-
-	watchMsg := <-discoverer.Watch()
-	ret := false
-	for _, wantMsg := range wantMsgs {
-		if wantMsg == watchMsg.String() {
-			ret = true
-			break
-		}
-	}
-	assert.True(t, ret, caseDesc)
 }
 
 func testUpdateArgs(t *testing.T, discoverer Discoverer) {
 	registerService(t, "10.0.0.13", TestGroup)
 
 	caseDesc := "Test update service args"
-	wantMsg := fmt.Sprintf(`key: event, value: update
-key: service, value: %s
-key: entity, value: upstream1
-key: node, value: 10.0.0.13:8848
-key: weight, value: 10`, TestService)
+	oldA6StrFmt := `{
+    "uri": "/hh",
+    "upstream": {
+        "nodes": [
+            {"host": "%s","port": %d,"weight":%d}
+        ],
+        "_discovery_type":"nacos","_service_name":"%s"}}`
+	oldA6Str := fmt.Sprintf(oldA6StrFmt, "10.0.0.11", 8848, 10, TestService)
 
-	// update group argument
-	update := newUpdate(t, utils.EventUpdate, nil, map[string]string{"group_name": TestGroup})
-	err := discoverer.Update(&update)
+	oldMsg, err := message.NewMessage("/apisix/routes/1", []byte(oldA6Str), message.EventAdd)
 	assert.Nil(t, err)
+
+	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s","discovery_args":{"group_name":"%s"}}}`
+	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup)
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), message.EventAdd)
+	assert.Nil(t, err)
+	err = discoverer.Update(oldMsg, msg)
+	assert.Nil(t, err, caseDesc)
+
+	expectA6StrFmt := `{
+    "uri": "/hh",
+    "upstream": {
+        "nodes": [
+            {"host": "%s","port": %d,"weight":%d}
+        ],
+        "_discovery_type":"nacos","_service_name":"%s","discovery_args":{"group_name":"%s"}}}`
+	expectA6Str := fmt.Sprintf(expectA6StrFmt, "10.0.0.13", 8848, 10, TestService, TestGroup)
+
 	watchMsg := <-discoverer.Watch()
-	assert.True(t, wantMsg == watchMsg.String(), caseDesc)
+	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
 }
 
 func testDeleteService(t *testing.T, discoverer Discoverer) {
 	caseDesc := "Test delete service"
 	// First delete the service
-	query := newQuery(t, utils.EventDelete, map[string]string{"group_name": TestGroup})
-	err := discoverer.Query(&query)
+	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s","discovery_args":{"group_name":"%s"}}}`
+	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup)
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), message.EventAdd)
+	assert.Nil(t, err)
+	err = discoverer.Delete(msg)
 	assert.Nil(t, err)
 
 	registerService(t, "10.0.0.14", TestGroup)
@@ -173,6 +174,37 @@ func testDeleteService(t *testing.T, discoverer Discoverer) {
 }
 
 func registerService(t *testing.T, ip string, group string) {
+	conf, err := getNaConfig(naYamlConfig)
+	assert.Nil(t, err)
+	serverConfigs := make([]constant.ServerConfig, 0, len(conf.Host))
+	for _, host := range conf.Host {
+		u, _ := url.Parse(host)
+		port := 8848 // nacos default port
+		if portStr := u.Port(); len(portStr) != 0 {
+			port, _ = strconv.Atoi(portStr)
+		}
+		serverConfig := *constant.NewServerConfig(
+			u.Hostname(),
+			uint64(port),
+			constant.WithScheme(u.Scheme),
+			constant.WithContextPath(conf.Prefix),
+		)
+		serverConfigs = append(serverConfigs, serverConfig)
+	}
+	//Another way of create clientConfig
+	clientConfig := constant.NewClientConfig(
+		constant.WithTimeoutMs(5000),
+		constant.WithNotLoadCacheAtStart(true),
+		constant.WithLogLevel("info"),
+	)
+
+	// For register some services to test
+	registerClient, _ := clients.NewNamingClient(
+		vo.NacosClientParam{
+			ClientConfig:  clientConfig,
+			ServerConfigs: serverConfigs,
+		},
+	)
 	success, err := registerClient.RegisterInstance(vo.RegisterInstanceParam{
 		Ip:          ip,
 		Port:        8848,
@@ -187,26 +219,7 @@ func registerService(t *testing.T, ip string, group string) {
 	assert.True(t, success)
 }
 
-func ReadFile(file string) []byte {
-	wd, _ := os.Getwd()
-	dir := wd[:strings.Index(wd, "internal")]
-	path := filepath.Join(dir, "test/testdata/nacos_conf/", file)
-	bs, _ := ioutil.ReadFile(path)
-	return bs
-}
-
-func newQuery(t *testing.T, event string, args map[string]string) comm.Query {
-	headerVals := []string{event, "upstream1", TestService}
-	query, err := comm.NewQuery(headerVals, args)
-	assert.Nil(t, err)
-
-	return query
-}
-
-func newUpdate(t *testing.T, event string, oldArgs, newArgs map[string]string) comm.Update {
-	headerVals := []string{event, TestService}
-	update, err := comm.NewUpdate(headerVals, oldArgs, newArgs)
-	assert.Nil(t, err)
-
-	return update
+func naMsg2Value(msg *message.Message) string {
+	str, _ := msg.Marshal()
+	return string(str)
 }

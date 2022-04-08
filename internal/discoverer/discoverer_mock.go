@@ -1,7 +1,7 @@
 package discoverer
 
 import (
-	"github.com/api7/apisix-seed/internal/core/comm"
+	"github.com/api7/apisix-seed/internal/core/message"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -17,17 +17,22 @@ func (m *MockInterface) Stop() {
 	_ = m.Called()
 }
 
-func (m *MockInterface) Query(query *comm.Query) error {
-	ret := m.Called(query)
+func (m *MockInterface) Query(msg *message.Message) error {
+	ret := m.Called(msg)
 	return ret.Error(0)
 }
 
-func (m *MockInterface) Update(update *comm.Update) error {
-	ret := m.Called(update)
+func (m *MockInterface) Update(oldMsg, msg *message.Message) error {
+	ret := m.Called(oldMsg, msg)
 	return ret.Error(0)
 }
 
-func (m *MockInterface) Watch() chan *comm.Message {
+func (m *MockInterface) Delete(msg *message.Message) error {
+	ret := m.Called(msg)
+	return ret.Error(0)
+}
+
+func (m *MockInterface) Watch() chan *message.Message {
 	ret := m.Called()
-	return ret.Get(0).(chan *comm.Message)
+	return ret.Get(0).(chan *message.Message)
 }
