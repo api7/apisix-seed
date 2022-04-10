@@ -19,7 +19,6 @@ type Interface interface {
 type GenericStoreOption struct {
 	BasePath string
 	Prefix   string
-	//ObjType  reflect.Type
 }
 
 type GenericStore struct {

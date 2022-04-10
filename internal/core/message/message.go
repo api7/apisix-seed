@@ -3,9 +3,9 @@ package message
 type StoreEvent = int
 
 const (
-	// 配置更新
+	// add or update config
 	EventAdd StoreEvent = 0x01
-	// 配置删除
+	// delete config
 	EventDelete StoreEvent = 0102
 )
 
@@ -46,6 +46,7 @@ func (msg *Message) ServiceName() string {
 	}
 	return up.DupServiceName
 }
+
 func (msg *Message) DiscoveryType() string {
 	up := msg.a6Conf.Upstream
 	if up.DiscoveryType != "" {
@@ -64,6 +65,7 @@ func (msg *Message) DiscoveryArgs() map[string]string {
 		"group_name":   up.DiscoveryArgs.GroupName,
 	}
 }
+
 func (msg *Message) InjectNodes(nodes interface{}) {
 	msg.a6Conf.Inject(nodes)
 }

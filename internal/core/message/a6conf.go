@@ -29,14 +29,14 @@ func NewA6Conf(value []byte) (*A6Conf, error) {
 	a6 := &A6Conf{
 		All: make(map[string]interface{}),
 	}
-	err := unMarshal(value, a6)
+	err := unmarshal(value, a6)
 	if err != nil {
 		return nil, err
 	}
 	return a6, nil
 }
 
-func unMarshal(data []byte, v *A6Conf) error {
+func unmarshal(data []byte, v *A6Conf) error {
 	err := json.Unmarshal(data, v)
 	if err != nil {
 		return err
