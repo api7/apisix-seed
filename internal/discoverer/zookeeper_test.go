@@ -57,25 +57,29 @@ func zkMsg2Value(msg *message.Message) string {
 	return string(str)
 }
 
-func TestNewZkDiscoverer(t *testing.T) {
+func newZkDiscoverer() (*ZookeeperDiscoverer, error) {
 	config, err := getZkConfig()
-	assert.Nil(t, err)
-	assert.NotNil(t, config)
+	if err != nil {
+		return nil, err
+	}
+
 	dis, err := NewZookeeperDiscoverer(config)
+
+	return dis.(*ZookeeperDiscoverer), err
+}
+
+func TestNewZookeeperDiscoverer(t *testing.T) {
+	dis, err := newZkDiscoverer()
 	assert.Nil(t, err)
 	assert.NotNil(t, dis)
 }
 
-func TestZkDiscoverer(t *testing.T) {
-	config, err := getZkConfig()
+func TestZookeeperDiscoverer(t *testing.T) {
+	dis, err := newZkDiscoverer()
 	assert.Nil(t, err)
-	assert.NotNil(t, config)
+	assert.NotNil(t, dis)
 
-	var dis Discoverer
-	dis, err = Discoveries["zookeeper"](config)
-	assert.Nil(t, err)
-
-	conn := dis.(*ZookeeperDiscoverer).zkConn
+	conn := dis.zkConn
 	svcName := "svc"
 	svcPath := "/zookeeper/" + svcName
 	// clear zookeeper service

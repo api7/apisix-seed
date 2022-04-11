@@ -29,7 +29,7 @@ func NewMessage(key string, value []byte, action StoreEvent) (*Message, error) {
 		Value:  string(value),
 		Action: action,
 	}
-	if action == EventAdd {
+	if len(value) != 0 {
 		a6, err := NewA6Conf(value)
 		if err != nil {
 			return nil, err

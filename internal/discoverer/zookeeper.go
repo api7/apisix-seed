@@ -49,15 +49,7 @@ func (zd *ZookeeperDiscoverer) Stop() {
 }
 
 func (zd *ZookeeperDiscoverer) Query(msg *message.Message) error {
-	var err error
-	switch msg.Action {
-	case message.EventAdd:
-		err = zd.fetchService(msg.ServiceName(), map[string]*message.Message{msg.Key: msg})
-	case message.EventDelete:
-		err = zd.removeService(msg.ServiceName())
-	}
-
-	return err
+	return zd.fetchService(msg.ServiceName(), map[string]*message.Message{msg.Key: msg})
 }
 
 func (zd *ZookeeperDiscoverer) Update(oldMsg, msg *message.Message) error {
@@ -68,8 +60,7 @@ func (zd *ZookeeperDiscoverer) Update(oldMsg, msg *message.Message) error {
 }
 
 func (zd *ZookeeperDiscoverer) Delete(msg *message.Message) error {
-	// TODO:
-	return nil
+	return zd.removeService(msg.ServiceName(), false)
 }
 
 func (zd *ZookeeperDiscoverer) Watch() chan *message.Message {
@@ -118,13 +109,16 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, a6conf map[strin
 }
 
 // removeService remove service watch and send message notify
-func (zd *ZookeeperDiscoverer) removeService(serviceName string) error {
+func (zd *ZookeeperDiscoverer) removeService(serviceName string, isRewrite bool) error {
 	zkService, ok := zd.zkWatchServices.Load(serviceName)
 	if !ok {
 		return errors.New("Zookeeper service: " + serviceName + " undefined")
 	}
 
-	zd.sendMessage(zkService.(*ZookeeperService), make([]*message.Node, 0))
+	if isRewrite {
+		zd.sendMessage(zkService.(*ZookeeperService), make([]*message.Node, 0))
+	}
+
 	zd.removeWatchService(zkService.(*ZookeeperService))
 
 	return nil
@@ -256,7 +250,7 @@ func (zd *ZookeeperDiscoverer) watchService(service *ZookeeperService) {
 					log.Errorf("fetch service: %s fail, err: %s", service.WatchPath, err)
 				}
 			case zk.EventNodeDeleted:
-				err = zd.removeService(service.Name)
+				err = zd.removeService(service.Name, true)
 				if err != nil {
 					log.Errorf("remove service: %s remove fail", err)
 				}
