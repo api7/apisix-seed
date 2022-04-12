@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/log"
-	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/go-zookeeper/zk"
 	"golang.org/x/net/context"
 )
@@ -20,7 +20,8 @@ func init() {
 
 type ZookeeperService struct {
 	Name         string
-	BindEntities []string
+	mutex        *sync.Mutex
+	BindEntities map[string]*message.Message
 	WatchPath    string
 	WatchContext context.Context
 	WatchCancel  context.CancelFunc
@@ -34,7 +35,7 @@ type ZookeeperDiscoverer struct {
 	zkUnWatchContext  context.Context
 	zkUnWatchCancel   context.CancelFunc
 
-	msgCh chan *comm.Message
+	msgCh chan *message.Message
 }
 
 func (zd *ZookeeperDiscoverer) Stop() {
@@ -47,37 +48,27 @@ func (zd *ZookeeperDiscoverer) Stop() {
 	zd.zkUnWatchCancel()
 }
 
-func (zd *ZookeeperDiscoverer) Query(query *comm.Query) error {
-	values, _, err := query.Decode()
-	if err != nil {
-		return err
-	}
-
-	event, entity, serviceName := values[0], values[1], values[2]
-
-	switch event {
-	case utils.EventAdd:
-		err = zd.fetchService(serviceName, []string{entity})
-	case utils.EventDelete:
-		err = zd.removeService(serviceName)
-	}
-
-	return err
+func (zd *ZookeeperDiscoverer) Query(msg *message.Message) error {
+	return zd.fetchService(msg.ServiceName(), map[string]*message.Message{msg.Key: msg})
 }
 
-func (zd *ZookeeperDiscoverer) Update(update *comm.Update) error {
+func (zd *ZookeeperDiscoverer) Update(oldMsg, msg *message.Message) error {
 	// TODO:
 	// Zookeeper does not need to introduce parameter information like nacos,
 	// so the Update interface cannot be triggered on the framework.
 	return nil
 }
 
-func (zd *ZookeeperDiscoverer) Watch() chan *comm.Message {
+func (zd *ZookeeperDiscoverer) Delete(msg *message.Message) error {
+	return zd.removeService(msg.ServiceName(), false)
+}
+
+func (zd *ZookeeperDiscoverer) Watch() chan *message.Message {
 	return zd.msgCh
 }
 
 // fetchService fetch service watch and send message notify
-func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entities []string) error {
+func (zd *ZookeeperDiscoverer) fetchService(serviceName string, a6conf map[string]*message.Message) error {
 	var service *ZookeeperService
 	zkService, ok := zd.zkWatchServices.Load(serviceName)
 
@@ -93,68 +84,52 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, entities []strin
 		zd.addWatchService(service)
 	}
 
-	for _, entity := range entities {
-		entryExists := false
-		for _, bindEntry := range service.BindEntities {
-			if entity == bindEntry {
-				entryExists = true
-				break
-			}
-		}
-
-		if !entryExists {
-			service.BindEntities = append(service.BindEntities, entity)
+	service.mutex.Lock()
+	for k, msg := range a6conf {
+		if _, ok = service.BindEntities[k]; !ok {
+			service.BindEntities[k] = msg
 		}
 	}
+	service.mutex.Unlock()
 
 	serviceInfo, _, err := zd.zkConn.Get(service.WatchPath)
 	if err != nil {
 		return err
 	}
 
-	node := Node{}
+	node := &message.Node{}
 	err = json.Unmarshal(serviceInfo, &node)
 	if err != nil {
 		return err
 	}
 
-	zd.sendMessage(service, []Node{node})
+	zd.sendMessage(service, []*message.Node{node})
 
 	return nil
 }
 
 // removeService remove service watch and send message notify
-func (zd *ZookeeperDiscoverer) removeService(serviceName string) error {
+func (zd *ZookeeperDiscoverer) removeService(serviceName string, isRewrite bool) error {
 	zkService, ok := zd.zkWatchServices.Load(serviceName)
 	if !ok {
 		return errors.New("Zookeeper service: " + serviceName + " undefined")
 	}
 
-	zd.sendMessage(zkService.(*ZookeeperService), make([]Node, 0))
+	if isRewrite {
+		zd.sendMessage(zkService.(*ZookeeperService), make([]*message.Node, 0))
+	}
+
 	zd.removeWatchService(zkService.(*ZookeeperService))
 
 	return nil
 }
 
 // sendMessage send message notify
-func (zd *ZookeeperDiscoverer) sendMessage(zkService *ZookeeperService, nodes []Node) {
-	messageService := &Service{
-		name:     zkService.Name,
-		nodes:    nodes,
-		entities: make(map[string]struct{}),
+func (zd *ZookeeperDiscoverer) sendMessage(zkService *ZookeeperService, nodes []*message.Node) {
+	for _, msg := range zkService.BindEntities {
+		msg.InjectNodes(nodes)
+		zd.msgCh <- msg
 	}
-
-	for _, entry := range zkService.BindEntities {
-		messageService.entities[entry] = struct{}{}
-	}
-
-	msg, err := messageService.NewNotifyMessage()
-	if err != nil {
-		log.Errorf("Zookeeper send message fail, err: %s", err)
-		return
-	}
-
-	zd.msgCh <- msg
 }
 
 // NewZookeeperDiscoverer generate zookeeper discoverer instance
@@ -168,7 +143,7 @@ func NewZookeeperDiscoverer(disConfig interface{}) (Discoverer, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	discoverer := ZookeeperDiscoverer{
-		msgCh:             make(chan *comm.Message, 10),
+		msgCh:             make(chan *message.Message, 10),
 		zkConfig:          config,
 		zkConn:            conn,
 		zkWatchServices:   sync.Map{},
@@ -210,7 +185,8 @@ func (zd *ZookeeperDiscoverer) newZookeeperClient(serviceName string) (*Zookeepe
 	watchPath := zd.zkConfig.Prefix + "/" + serviceName
 	service := &ZookeeperService{
 		Name:         serviceName,
-		BindEntities: make([]string, 0),
+		mutex:        &sync.Mutex{},
+		BindEntities: make(map[string]*message.Message),
 		WatchPath:    watchPath,
 		WatchContext: ctx,
 		WatchCancel:  cancel,
@@ -242,7 +218,7 @@ func (zd *ZookeeperDiscoverer) watchServicePrefix() {
 			for _, serviceName := range serviceNames {
 				a6Entity, ok := zd.zkUnWatchServices.Load(serviceName)
 				if ok {
-					err = zd.fetchService(serviceName, a6Entity.([]string))
+					err = zd.fetchService(serviceName, a6Entity.(map[string]*message.Message))
 					if err != nil {
 						log.Errorf("fetch service: %s fail, err: %s", serviceName, err)
 					}
@@ -274,7 +250,7 @@ func (zd *ZookeeperDiscoverer) watchService(service *ZookeeperService) {
 					log.Errorf("fetch service: %s fail, err: %s", service.WatchPath, err)
 				}
 			case zk.EventNodeDeleted:
-				err = zd.removeService(service.Name)
+				err = zd.removeService(service.Name, true)
 				if err != nil {
 					log.Errorf("remove service: %s remove fail", err)
 				}

@@ -3,9 +3,9 @@ package discoverer
 import (
 	"testing"
 
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/core/comm"
-	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -52,60 +52,67 @@ func removeZkService(conn *zk.Conn, svcPath string) error {
 	return err
 }
 
-func getNode(msg chan *comm.Message) string {
-	m := <-msg
-	_, _, nodes, _ := m.Decode()
-	for node := range nodes {
-		return node
-	}
-	return ""
+func zkMsg2Value(msg *message.Message) string {
+	str, _ := msg.Marshal()
+	return string(str)
 }
 
-func TestNewZkDiscoverer(t *testing.T) {
+func newZkDiscoverer() (*ZookeeperDiscoverer, error) {
 	config, err := getZkConfig()
-	assert.Nil(t, err)
-	assert.NotNil(t, config)
+	if err != nil {
+		return nil, err
+	}
+
 	dis, err := NewZookeeperDiscoverer(config)
+
+	return dis.(*ZookeeperDiscoverer), err
+}
+
+func TestNewZookeeperDiscoverer(t *testing.T) {
+	dis, err := newZkDiscoverer()
 	assert.Nil(t, err)
 	assert.NotNil(t, dis)
 }
 
-func TestZkDiscoverer(t *testing.T) {
-	config, err := getZkConfig()
+func TestZookeeperDiscoverer(t *testing.T) {
+	dis, err := newZkDiscoverer()
 	assert.Nil(t, err)
-	assert.NotNil(t, config)
+	assert.NotNil(t, dis)
 
-	var dis Discoverer
-	dis, err = Discoveries["zookeeper"](config)
-	assert.Nil(t, err)
-
-	conn := dis.(*ZookeeperDiscoverer).zkConn
+	conn := dis.zkConn
 	svcName := "svc"
 	svcPath := "/zookeeper/" + svcName
 	// clear zookeeper service
 	err = removeZkService(conn, svcPath)
 	assert.Nil(t, err)
 
-	headers := []string{utils.EventAdd, "/apisix/routes/1", svcName}
-	query, err := comm.NewQuery(headers, map[string]string{})
+	key := "/apisix/routes/1"
+	value := `{"uri":"/hh","upstream":{"discovery_type":"zookeeper","service_name":"svc"}}`
+	msg, err := message.NewMessage(key, []byte(value), message.EventAdd)
 	assert.Nil(t, err)
 
-	err = dis.Query(&query)
+	err = dis.Query(msg)
 	assert.NotNil(t, err)
-	msg := dis.Watch()
+	msgChan := dis.Watch()
 
 	// create service
-	err = createZkService(conn, svcPath, "{\"host\":\"127.0.0.1:1980\",\"weight\":100}")
+	err = createZkService(conn, svcPath, `{"host":"127.0.0.1","port":1980,"weight":100}`)
 	assert.Nil(t, err)
-	assert.Equal(t, getNode(msg), "127.0.0.1:1980")
+	newMsg := <-msgChan
+	expectValue := `{"uri":"/hh","upstream":{"_discovery_type":"zookeeper","_service_name":"svc","nodes":[{"host":"127.0.0.1","port":1980,"weight":100}]}}`
+	assert.JSONEq(t, expectValue, zkMsg2Value(newMsg))
 
 	// update service
-	err = updateZkService(conn, svcPath, "{\"host\":\"127.0.0.1:1981\",\"weight\":100}")
+	err = updateZkService(conn, svcPath, `{"host":"127.0.0.1","port":1981,"weight":100}`)
 	assert.Nil(t, err)
-	assert.Equal(t, getNode(msg), "127.0.0.1:1981")
+	newMsg = <-msgChan
+	expectValue = `{"uri":"/hh","upstream":{"_discovery_type":"zookeeper","_service_name":"svc","nodes":[{"host":"127.0.0.1","port":1981,"weight":100}]}}`
+	assert.JSONEq(t, expectValue, zkMsg2Value(newMsg))
 
 	// remove service
 	err = removeZkService(conn, svcPath)
 	assert.Nil(t, err)
-	assert.Equal(t, getNode(msg), "")
+	newMsg = <-msgChan
+	expectValue = `{"uri":"/hh","upstream":{"_discovery_type":"zookeeper","_service_name":"svc","nodes":[]}}`
+	assert.JSONEq(t, expectValue, zkMsg2Value(newMsg))
 }

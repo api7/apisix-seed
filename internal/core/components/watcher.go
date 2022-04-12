@@ -2,15 +2,15 @@ package components
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"sync"
 
-	"github.com/api7/apisix-seed/internal/core/comm"
-	"github.com/api7/apisix-seed/internal/core/entity"
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
 	"github.com/api7/apisix-seed/internal/log"
-	"github.com/api7/apisix-seed/internal/utils"
 )
 
 type Watcher struct {
@@ -21,29 +21,32 @@ type Watcher struct {
 	sem chan struct{}
 }
 
+// Init: load apisix config from etcd, query service from discovery
 func (w *Watcher) Init() {
 	// the number of semaphore is referenced to https://github.com/golang/go/blob/go1.17.1/src/cmd/compile/internal/noder/noder.go#L38
 	w.sem = make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
 	// List the initial information
 	for _, s := range storer.GetStores() {
-		objPtrs, err := s.List(entity.ServiceFilter)
+		//eg: query from etcd by prefix /apisix/routes/
+		msgs, err := s.List(message.ServiceFilter)
 		if err != nil {
-			panic("storer list error")
+			panic(fmt.Sprintf("storer list error: %v", err))
 		}
-		if objPtrs == nil {
+		if len(msgs) == 0 {
 			continue
 		}
 		wg := sync.WaitGroup{}
-		wg.Add(len(objPtrs))
-		for _, objPtr := range objPtrs {
+		wg.Add(len(msgs))
+		for _, msg := range msgs {
 			w.sem <- struct{}{}
-			go w.handleQuery(objPtr, s.BasePath(), &wg)
+			go w.handleQuery(msg, &wg)
 		}
 		wg.Wait()
 	}
 }
 
+// Watch: when updating route、service、upstream, query service from discovery
 func (w *Watcher) Watch() {
 	w.ctx, w.cancel = context.WithCancel(context.TODO())
 
@@ -62,21 +65,13 @@ func (w *Watcher) Close() {
 }
 
 // handleQuery: init and query the service from discovery by apisix's conf
-func (w *Watcher) handleQuery(objPtr interface{}, prefix string, wg *sync.WaitGroup) {
+func (w *Watcher) handleQuery(msg *message.Message, wg *sync.WaitGroup) {
 	defer func() {
 		<-w.sem
 		wg.Done()
 	}()
 
-	ent := objPtr.(entity.Entity)
-	query, err := encodeQuery(utils.EventAdd, ent.KeyPath(prefix), ent)
-	if err != nil {
-		log.Warnf("Watcher encode query message error: %s", err)
-		return
-	}
-
-	log.Infof("Watcher query: %s", query.String())
-	_ = discoverer.GetDiscoverer(ent.GetDiscoveryType()).Query(query)
+	_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
 }
 
 func (w *Watcher) handleWatch(s *storer.GenericStore) {
@@ -86,120 +81,57 @@ func (w *Watcher) handleWatch(s *storer.GenericStore) {
 		select {
 		case <-w.ctx.Done():
 			return
-		case storeEvent := <-ch:
-			values, err := storeEvent.Decode()
-			if err != nil {
-				log.Warnf("Watcher decode watch message error: %s", err)
-				continue
-			}
-
+		case msgs := <-ch:
 			wg := sync.WaitGroup{}
-			wg.Add(len(values))
-			for _, val := range values {
+			wg.Add(len(msgs))
+			for _, msg := range msgs {
 				w.sem <- struct{}{}
-				go w.handleValue(val, &wg, s)
+				go w.handleValue(msg, &wg, s)
 			}
 			wg.Wait()
 		}
 	}
 }
 
-func (w *Watcher) handleValue(val []string, wg *sync.WaitGroup, s *storer.GenericStore) {
+func (w *Watcher) handleValue(msg *message.Message, wg *sync.WaitGroup, s *storer.GenericStore) {
 	defer func() {
 		<-w.sem
 		wg.Done()
 	}()
 
-	log.Infof("Watcher handle %s event: key=%s value=%s", val[0], val[1], val[2])
-	switch val[0] {
-	case utils.EventAdd:
-		objPtr, err := s.StringToObjPtr(val[2], val[1])
-		if err != nil {
-			log.Warnf("value string error: %s", err)
-			return
-		}
-		if !entity.ServiceFilter(objPtr) {
+	log.Infof("Watcher handle %d event: key=%s", msg.Action, msg.Key)
+	switch msg.Action {
+	case message.EventAdd:
+		if !message.ServiceFilter(msg) {
 			return
 		}
 
-		ent := objPtr.(entity.Entity)
-		entityID := ent.KeyPath(s.BasePath())
-		oldObjPtr, ok := s.Store(entityID, objPtr)
+		obj, ok := s.Store(msg.Key, msg)
+		oldMsg := obj.(*message.Message)
 		if !ok {
 			// Obtains a new entity with service information
-			log.Infof("Watcher obtains a new entity %s with service information", entityID)
-			query, err := encodeQuery(utils.EventAdd, entityID, ent)
-			if err != nil {
-				log.Warnf("Watcher encode query message error: %s", err)
-				return
-			}
-			_ = discoverer.GetDiscoverer(ent.GetDiscoveryType()).Query(query)
-		} else if entity.ServiceUpdate(oldObjPtr, objPtr) {
+			log.Infof("Watcher obtains a new entity %s with service information", msg.Key)
+			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
+		} else if message.ServiceUpdate(oldMsg, msg) {
 			// Updates the service information of existing entity
-			log.Infof("Watcher updates the service information of existing entity %s", entityID)
-			update, err := encodeUpdate(oldObjPtr.(entity.Entity), ent)
-			if err != nil {
-				log.Warnf("Watcher encode update message error: %s", err)
-				return
-			}
-			_ = discoverer.GetDiscoverer(ent.GetDiscoveryType()).Update(update)
-		} else if entity.ServiceReplace(oldObjPtr, objPtr) {
+			log.Infof("Watcher updates the service information of existing entity %s", msg.Key)
+			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
+		} else if message.ServiceReplace(oldMsg, msg) {
 			// Replaces the service information of existing entity
-			log.Infof("Watcher replaces the service information of existing entity %s", entityID)
-			oldEnt := oldObjPtr.(entity.Entity)
-			del, err := encodeQuery(utils.EventDelete, entityID, oldEnt)
-			if err != nil {
-				log.Warnf("Watcher encode query message error: %s", err)
-				return
-			}
-			add, err := encodeQuery(utils.EventAdd, entityID, ent)
-			if err != nil {
-				log.Warnf("Watcher encode query message error: %s", err)
-				return
-			}
+			log.Infof("Watcher replaces the service information of existing entity %s", msg.Key)
 
-			_ = discoverer.GetDiscoverer(oldEnt.GetDiscoveryType()).Query(del)
-			_ = discoverer.GetDiscoverer(ent.GetDiscoveryType()).Query(add)
+			_ = discoverer.GetDiscoverer(oldMsg.DiscoveryType()).Delete(oldMsg)
+			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
+		} else {
+			log.Infof("Watcher nothing to do, key: %s", msg.Key)
 		}
-		log.Infof("Watcher nothing to do, key: ", entityID)
-	case utils.EventDelete:
-		objPtr, ok := s.Delete(val[1])
+	case message.EventDelete:
+		obj, ok := s.Delete(msg.Key)
 		if ok {
 			// Deletes an existing entity
-			ent := objPtr.(entity.Entity)
-			entityID := ent.KeyPath(s.BasePath())
-			log.Infof("Watcher deletes an existing entity %s", entityID)
-			query, err := encodeQuery(utils.EventDelete, entityID, ent)
-			if err != nil {
-				log.Warnf("Watcher encode query message error: %s", err)
-				return
-			}
-			_ = discoverer.GetDiscoverer(ent.GetDiscoveryType()).Query(query)
+			delMsg := obj.(*message.Message)
+			log.Infof("Watcher deletes an existing entity %s", delMsg.Key)
+			_ = discoverer.GetDiscoverer(delMsg.DiscoveryType()).Delete(delMsg)
 		}
 	}
-}
-
-func encodeQuery(event, entityID string, ent entity.Entity) (*comm.Query, error) {
-	_, service, args := ent.Extract()
-
-	headerVals := []string{event, entityID, service}
-	query, err := comm.NewQuery(headerVals, args)
-	if err != nil {
-		return nil, err
-	}
-
-	return &query, nil
-}
-
-func encodeUpdate(oldEnt, newQEnt entity.Entity) (*comm.Update, error) {
-	_, service, args := oldEnt.Extract()
-	_, _, newArgs := newQEnt.Extract()
-
-	headerVals := []string{utils.EventUpdate, service}
-	update, err := comm.NewUpdate(headerVals, args, newArgs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &update, nil
 }

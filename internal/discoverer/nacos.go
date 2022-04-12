@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/api7/apisix-seed/internal/core/message"
+
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/core/comm"
 	"github.com/api7/apisix-seed/internal/log"
-	"github.com/api7/apisix-seed/internal/utils"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
@@ -26,8 +26,20 @@ func init() {
 }
 
 func serviceID(service string, args map[string]string) string {
-	serviceId := fmt.Sprintf("%s@%s@%s", args["namespace_id"], args["group_name"], service)
+	id, group := "", ""
+	if args != nil {
+		id, group = args["namespace_id"], args["group_name"]
+	}
+	serviceId := fmt.Sprintf("%s@%s@%s", id, group, service)
 	return serviceId
+}
+
+type NacosService struct {
+	id     string
+	name   string
+	args   map[string]string
+	nodes  []*message.Node             // nodes are the upstream machines of the service
+	a6Conf map[string]*message.Message // entities are the upstreams/services/routes that use the service
 }
 
 type NacosDiscoverer struct {
@@ -41,11 +53,11 @@ type NacosDiscoverer struct {
 	paramMutex sync.Mutex
 	params     map[string]*vo.SubscribeParam
 	cacheMutex sync.Mutex
-	cache      map[string]*Service
+	cache      map[string]*NacosService
 
 	crc hash.Hash32
 
-	msgCh chan *comm.Message
+	msgCh chan *message.Message
 }
 
 func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
@@ -83,9 +95,9 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 		paramMutex:    sync.Mutex{},
 		params:        make(map[string]*vo.SubscribeParam),
 		cacheMutex:    sync.Mutex{},
-		cache:         make(map[string]*Service),
+		cache:         make(map[string]*NacosService),
 		crc:           crc32.NewIEEE(),
-		msgCh:         make(chan *comm.Message, 10),
+		msgCh:         make(chan *message.Message, 10),
 	}
 	return &discoverer, nil
 }
@@ -102,112 +114,95 @@ func (d *NacosDiscoverer) Stop() {
 	}
 }
 
-func (d *NacosDiscoverer) Query(query *comm.Query) error {
-	values, args, err := query.Decode()
-	if err != nil {
-		return err
-	}
-
-	event, entity, service := values[0], values[1], values[2]
-	serviceId := serviceID(service, args)
-
-	switch event {
-	case utils.EventAdd:
-		d.cacheMutex.Lock()
-		defer d.cacheMutex.Unlock()
-
-		ok := false
-		var cacheService *Service
-		if cacheService, ok = d.cache[serviceId]; ok {
-			// cache information is already available
-			cacheService.entities[entity] = struct{}{}
-		} else {
-			// fetch new service information
-			nodes, err := d.fetch(service, args)
-			if err != nil {
-				return err
-			}
-
-			cacheService = &Service{
-				name:     service,
-				nodes:    nodes,
-				entities: map[string]struct{}{entity: {}},
-				args:     args,
-			}
-
-			d.cache[serviceId] = cacheService
-		}
-
-		msg, err := cacheService.NewNotifyMessage()
-		if err != nil {
-			return err
-		}
-		d.msgCh <- msg
-	case utils.EventDelete:
-		d.cacheMutex.Lock()
-		defer d.cacheMutex.Unlock()
-
-		if cacheService, ok := d.cache[serviceId]; ok {
-			entities := cacheService.entities
-			delete(entities, entity)
-
-			// When a service is not used, it needs to be unsubscribed
-			if len(entities) == 0 {
-				d.unsubscribe(cacheService)
-				delete(d.cache, serviceId)
-			}
-		}
-	}
-	return nil
-}
-
-func (d *NacosDiscoverer) Update(update *comm.Update) error {
-	values, oldArgs, newArgs, err := update.Decode()
-	if err != nil {
-		return err
-	}
-
-	event, service := values[0], values[1]
-	log.Infof("Nacos update service %s", service)
-	if event != utils.EventUpdate {
-		log.Error("incorrect update event")
-		return errors.New("incorrect update event")
-	}
-	serviceId := serviceID(service, oldArgs)
-	newServiceId := serviceID(service, newArgs)
+func (d *NacosDiscoverer) Query(msg *message.Message) error {
+	serviceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
 
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
-	if cacheService, ok := d.cache[serviceId]; ok {
-		d.unsubscribe(cacheService)
 
-		nodes, err := d.fetch(service, newArgs)
+	if discover, ok := d.cache[serviceId]; ok {
+		// cache information is already available
+		msg.InjectNodes(discover.nodes)
+		discover.a6Conf[msg.Key] = msg
+	} else {
+		// fetch new service information
+		dis := &NacosService{
+			id:   serviceId,
+			name: msg.ServiceName(),
+			args: msg.DiscoveryArgs(),
+		}
+		nodes, err := d.fetch(dis)
 		if err != nil {
 			return err
 		}
-		cacheService.nodes = nodes
-		cacheService.args = newArgs
+
+		msg.InjectNodes(nodes)
+
+		dis.nodes = nodes
+		dis.a6Conf = map[string]*message.Message{
+			msg.Key: msg,
+		}
+
+		d.cache[serviceId] = dis
+	}
+	d.msgCh <- msg
+
+	return nil
+}
+
+func (d *NacosDiscoverer) Delete(msg *message.Message) error {
+	serviceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
+
+	d.cacheMutex.Lock()
+	defer d.cacheMutex.Unlock()
+
+	if discover, ok := d.cache[serviceId]; ok {
+		delete(discover.a6Conf, msg.Key)
+
+		// When a service is not used, it needs to be unsubscribed
+		if len(discover.a6Conf) == 0 {
+			d.unsubscribe(discover)
+			delete(d.cache, serviceId)
+		}
+	}
+	return nil
+}
+
+func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
+	serviceId := serviceID(oldMsg.ServiceName(), oldMsg.DiscoveryArgs())
+	newServiceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
+
+	d.cacheMutex.Lock()
+	defer d.cacheMutex.Unlock()
+	if discover, ok := d.cache[serviceId]; ok {
+		d.unsubscribe(discover)
+
+		discover.args = msg.DiscoveryArgs()
+		nodes, err := d.fetch(discover)
+		if err != nil {
+			return err
+		}
+
+		msg.InjectNodes(nodes)
+		discover.nodes = nodes
+		discover.a6Conf[msg.Key] = msg
 
 		delete(d.cache, serviceId)
-		d.cache[newServiceId] = cacheService
+		d.cache[newServiceId] = discover
 
-		msg, err := cacheService.NewNotifyMessage()
-		if err != nil {
-			return err
-		}
 		d.msgCh <- msg
 	}
 
 	return nil
 }
 
-func (d *NacosDiscoverer) Watch() chan *comm.Message {
+func (d *NacosDiscoverer) Watch() chan *message.Message {
 	return d.msgCh
 }
 
-func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node, error) {
+func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) {
 	// if the namespace client has not yet been created
-	namespace := args["namespace_id"]
+	namespace := service.args["namespace_id"]
 	if _, ok := d.namingClients[namespace]; !ok {
 		err := d.newClient(namespace)
 		if err != nil {
@@ -215,34 +210,33 @@ func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node,
 		}
 	}
 
-	serviceId := serviceID(service, args)
-	client := d.namingClients[namespace][d.hash(serviceId, namespace)]
+	client := d.namingClients[namespace][d.hash(service.id, namespace)]
 
 	serviceInfo, err := client.GetService(vo.GetServiceParam{
-		ServiceName: service,
-		GroupName:   args["group_name"],
+		ServiceName: service.name,
+		GroupName:   service.args["group_name"],
 	})
 	if err != nil {
-		log.Errorf("Nacos get service[%s] error: %s", service, err)
+		log.Errorf("Nacos get service[%s] error: %s", service.name, err)
 		return nil, err
 	}
 
 	// watch the new service
-	if err := d.subscribe(service, args, client); err != nil {
-		log.Errorf("Nacos subscribe service[%s] error: %s", service, err)
+	if err = d.subscribe(service, client); err != nil {
+		log.Errorf("Nacos subscribe service[%s] error: %s", service.name, err)
 		return nil, err
 	}
 
-	nodes := make([]Node, len(serviceInfo.Hosts))
+	nodes := make([]*message.Node, len(serviceInfo.Hosts))
 	for i, host := range serviceInfo.Hosts {
-		address := fmt.Sprintf("%s:%d", host.Ip, host.Port)
 		weight := int(host.Weight)
 		if weight == 0 {
 			weight = d.weight
 		}
 
-		nodes[i] = Node{
-			Host:   address,
+		nodes[i] = &message.Node{
+			Host:   host.Ip,
+			Port:   int(host.Port),
 			Weight: weight,
 		}
 	}
@@ -252,60 +246,61 @@ func (d *NacosDiscoverer) fetch(service string, args map[string]string) ([]Node,
 
 func (d *NacosDiscoverer) newSubscribeCallback(serviceId string) func([]model.SubscribeService, error) {
 	return func(services []model.SubscribeService, err error) {
-		nodes := make([]Node, len(services))
+		nodes := make([]*message.Node, len(services))
 		for i, inst := range services {
-			address := fmt.Sprintf("%s:%d", inst.Ip, inst.Port)
 			weight := int(inst.Weight)
 			if weight == 0 {
 				weight = d.weight
 			}
 
-			nodes[i] = Node{
-				Host:   address,
+			nodes[i] = &message.Node{
+				Host:   inst.Ip,
+				Port:   int(inst.Port),
 				Weight: weight,
 			}
 		}
 
 		d.cacheMutex.Lock()
-		cacheService := d.cache[serviceId]
-		cacheService.nodes = nodes
+		discover := d.cache[serviceId]
+		discover.nodes = nodes
 		d.cacheMutex.Unlock()
 
-		msg, _ := cacheService.NewNotifyMessage()
-		d.msgCh <- msg
+		for _, msg := range discover.a6Conf {
+			msg.InjectNodes(nodes)
+			d.msgCh <- msg
+		}
 	}
 }
 
-func (d *NacosDiscoverer) subscribe(service string, args map[string]string, client naming_client.INamingClient) error {
-	log.Infof("Nacos subscribe service %s", service)
-	serviceId := serviceID(service, args)
+func (d *NacosDiscoverer) subscribe(service *NacosService, client naming_client.INamingClient) error {
+	log.Infof("Nacos subscribe service %s", service.name)
+
 	param := &vo.SubscribeParam{
-		ServiceName:       service,
-		GroupName:         args["group_name"],
-		SubscribeCallback: d.newSubscribeCallback(serviceId),
+		ServiceName:       service.name,
+		GroupName:         service.args["group_name"],
+		SubscribeCallback: d.newSubscribeCallback(service.id),
 	}
 
 	// TODO: retry if failed to Subscribe
 	err := client.Subscribe(param)
 	if err == nil {
 		d.paramMutex.Lock()
-		d.params[serviceId] = param
+		d.params[service.id] = param
 		d.paramMutex.Unlock()
 	}
 	return err
 }
 
-func (d *NacosDiscoverer) unsubscribe(service *Service) {
+func (d *NacosDiscoverer) unsubscribe(service *NacosService) {
 	log.Infof("Nacos unsubscribe service %s", service.name)
-	serviceId := serviceID(service.name, service.args)
-	param := d.params[serviceId]
+	param := d.params[service.id]
 
 	namespace := service.args["namespace_id"]
-	client := d.namingClients[namespace][d.hash(serviceId, namespace)]
+	client := d.namingClients[namespace][d.hash(service.id, namespace)]
 	// the nacos unsubscribe function returns only nil
 	// so ignore the error handling
 	_ = client.Unsubscribe(param)
-	delete(d.params, serviceId)
+	delete(d.params, service.id)
 }
 
 func (d *NacosDiscoverer) newClient(namespace string) error {
