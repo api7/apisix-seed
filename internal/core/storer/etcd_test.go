@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/api7/apisix-seed/internal/core/message"
-
 	"github.com/api7/apisix-seed/internal/conf"
+	"github.com/api7/apisix-seed/internal/core/message"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -173,4 +172,37 @@ func getA6Conf(uri string) string {
 		}
 	}`
 	return fmt.Sprintf(a6fmt, uri)
+}
+
+func TestConcurrencyUpdate(t *testing.T) {
+	client, err := NewEtcd(&conf.Etcd{Host: []string{host}})
+	assert.Nil(t, err, "Test concurrency update etcd")
+
+	ready := make(chan struct{})
+	done := make(chan struct{})
+	key, value := "testKey", "testValue"
+	go func() {
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-ready
+				err := client.Update(context.Background(), key, value, 0)
+				assert.Nil(t, err)
+			}()
+		}
+		wg.Wait()
+		close(done)
+	}()
+
+	close(ready)
+	<-done
+
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	resp, err := client.client.Get(ctx, key)
+	assert.Nil(t, err)
+	assert.True(t, resp.Count > 0)
+
+	assert.True(t, resp.Kvs[0].Version == 1)
 }
