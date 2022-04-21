@@ -199,7 +199,8 @@ func TestConcurrencyUpdate(t *testing.T) {
 	close(ready)
 	<-done
 
-	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 	resp, err := client.client.Get(ctx, key)
 	assert.Nil(t, err)
 	assert.True(t, resp.Count > 0)
