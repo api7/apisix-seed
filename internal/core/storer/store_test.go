@@ -139,7 +139,7 @@ func TestList(t *testing.T) {
 	}
 	msgs := make([]*message.Message, 0, len(testMsgs))
 	for _, v := range testMsgs {
-		msg, err := message.NewMessage(v.key, []byte(v.a6Str), message.EventAdd)
+		msg, err := message.NewMessage(v.key, []byte(v.a6Str), 1, message.EventAdd)
 		assert.Nil(t, err, v.desc)
 		msgs = append(msgs, msg)
 	}
@@ -189,7 +189,7 @@ func TestWatch(t *testing.T) {
 	assert.Nil(t, err, caseDesc)
 
 	a6Str := `{"uri":"/test","upstream":{"service_name":"APISIX-ZK","type":"roundrobin","discovery_type":"mock_zk"}}`
-	givenMsg, err := message.NewMessage("/apisxi/routes/a", []byte(a6Str), message.EventAdd)
+	givenMsg, err := message.NewMessage("/apisxi/routes/a", []byte(a6Str), 1, message.EventAdd)
 	assert.Nil(t, err, caseDesc)
 	ch <- []*message.Message{givenMsg}
 
@@ -200,7 +200,7 @@ func TestWatch(t *testing.T) {
 func TestUpdateNodes(t *testing.T) {
 	caseDesc := "sanity"
 	mStg := &MockInterface{}
-	mStg.On("Update", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	mStg.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 	}).Return(nil)
 	store, err := NewGenericStore("test", GenericStoreOption{
 		BasePath: "/apisix/routes",
@@ -209,7 +209,7 @@ func TestUpdateNodes(t *testing.T) {
 	assert.Nil(t, err, caseDesc)
 
 	a6Str := `{"uri":"/test","upstream":{"service_name":"APISIX-ZK","type":"roundrobin","discovery_type":"mock_zk"}}`
-	givenMsg, err := message.NewMessage("/apisxi/routes/a", []byte(a6Str), message.EventAdd)
+	givenMsg, err := message.NewMessage("/apisxi/routes/a", []byte(a6Str), 1, message.EventAdd)
 	assert.Nil(t, err, caseDesc)
 
 	err = store.UpdateNodes(context.Background(), givenMsg)

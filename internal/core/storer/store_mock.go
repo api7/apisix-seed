@@ -17,8 +17,8 @@ func (m *MockInterface) List(_ context.Context, key string) ([]*message.Message,
 	return ret.Get(0).([]*message.Message), ret.Error(1)
 }
 
-func (m *MockInterface) Update(_ context.Context, key, value string) error {
-	ret := m.Called(key, value)
+func (m *MockInterface) Update(_ context.Context, key, value string, version int64) error {
+	ret := m.Called(key, value, version)
 	return ret.Error(0)
 }
 

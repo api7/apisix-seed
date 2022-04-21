@@ -123,7 +123,8 @@ func (w *Watcher) handleValue(msg *message.Message, wg *sync.WaitGroup, s *store
 			_ = discoverer.GetDiscoverer(oldMsg.DiscoveryType()).Delete(oldMsg)
 			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
 		} else {
-			log.Infof("Watcher nothing to do, key: %s", msg.Key)
+			log.Infof("Watcher update version only, key: %s, version: %d", msg.Key, msg.Version)
+			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
 		}
 	case message.EventDelete:
 		obj, ok := s.Delete(msg.Key)
