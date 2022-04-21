@@ -61,7 +61,7 @@ func TestRewriter(t *testing.T) {
     }
 }`
 	// mock new upstream nodes was found
-	msg, err := message.NewMessage("/prefix/mocks/1", []byte(givenA6Str), message.EventAdd)
+	msg, err := message.NewMessage("/prefix/mocks/1", []byte(givenA6Str), 1, message.EventAdd)
 	assert.Nil(t, err, caseDesc)
 
 	msg.InjectNodes(givenNodes)

@@ -112,7 +112,7 @@ func (s *EtcdV3) List(ctx context.Context, prefix string) ([]*message.Message, e
 
 	msgs := make([]*message.Message, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		msg, err := message.NewMessage(string(kv.Key), kv.Value, message.EventAdd)
+		msg, err := message.NewMessage(string(kv.Key), kv.Value, kv.Version, message.EventAdd)
 		if err != nil {
 			log.Errorf("etcd list prefix[%s] format failed: %s", prefix, err)
 			continue
@@ -138,16 +138,23 @@ func (s *EtcdV3) Create(ctx context.Context, key, value string) error {
 }
 
 // Update a value at the specified key
-func (s *EtcdV3) Update(ctx context.Context, key, value string) error {
+func (s *EtcdV3) Update(ctx context.Context, key, value string, version int64) error {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	_, err := s.client.Put(ctx, key, value)
+	txn := s.client.Txn(ctx).
+		If(clientv3.Compare(clientv3.Version(key), "=", version)).
+		Then(clientv3.OpPut(key, value))
+
+	resp, err := txn.Commit()
 	if err != nil {
 		log.Errorf("etcd update key[%s] failed: %s", key, err)
 		return fmt.Errorf("etcd update key[%s] failed: %s", key, err)
 	}
-
+	if resp.Succeeded != true {
+		return fmt.Errorf("etcd update key[%s] failed", key)
+	}
+	log.Infof("etcd update key[%s], version: %d", key, version)
 	return nil
 }
 
@@ -214,7 +221,8 @@ func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Mes
 					typ = message.EventDelete
 				}
 
-				msg, err := message.NewMessage(key, ev.Kv.Value, typ)
+				log.Infof("watch changed, key: %s, version: %d", key, ev.Kv.Version)
+				msg, err := message.NewMessage(key, ev.Kv.Value, ev.Kv.Version, typ)
 				if err != nil {
 					log.Warnf("etcd watch key[%s]'s %s event failed: %s", key, typ, err)
 					continue

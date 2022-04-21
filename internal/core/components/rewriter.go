@@ -54,7 +54,9 @@ func (r *Rewriter) watch(ch chan *message.Message) {
 				log.Errorf("key format Invaild: ", msg.Key)
 				return
 			}
-			_ = storer.GetStore(entity).UpdateNodes(r.ctx, msg)
+			if err := storer.GetStore(entity).UpdateNodes(r.ctx, msg); err != nil {
+				log.Errorf("update nodes failed: %s", err)
+			}
 		}
 	}
 }

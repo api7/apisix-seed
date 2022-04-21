@@ -175,6 +175,10 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
 	if discover, ok := d.cache[serviceId]; ok {
+		if serviceId == newServiceId {
+			discover.a6Conf[msg.Key].Version = msg.Version
+			return nil
+		}
 		d.unsubscribe(discover)
 
 		discover.args = msg.DiscoveryArgs()

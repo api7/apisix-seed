@@ -17,17 +17,19 @@ type Node struct {
 }
 
 type Message struct {
-	Key    string
-	Value  string
-	Action StoreEvent
-	a6Conf *A6Conf
+	Key     string
+	Value   string
+	Version int64
+	Action  StoreEvent
+	a6Conf  *A6Conf
 }
 
-func NewMessage(key string, value []byte, action StoreEvent) (*Message, error) {
+func NewMessage(key string, value []byte, version int64, action StoreEvent) (*Message, error) {
 	msg := &Message{
-		Key:    key,
-		Value:  string(value),
-		Action: action,
+		Key:     key,
+		Value:   string(value),
+		Version: version,
+		Action:  action,
 	}
 	if len(value) != 0 {
 		a6, err := NewA6Conf(value)

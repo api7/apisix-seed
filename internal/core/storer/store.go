@@ -12,7 +12,7 @@ import (
 
 type Interface interface {
 	List(context.Context, string) ([]*message.Message, error)
-	Update(context.Context, string, string) error
+	Update(context.Context, string, string, int64) error
 	Watch(context.Context, string) <-chan []*message.Message
 }
 
@@ -84,7 +84,7 @@ func (s *GenericStore) UpdateNodes(ctx context.Context, msg *message.Message) (e
 		log.Errorf("json marshal failed: %s", err)
 		return fmt.Errorf("marshal failed: %s", err)
 	}
-	if err = s.Stg.Update(ctx, msg.Key, string(bs)); err != nil {
+	if err = s.Stg.Update(ctx, msg.Key, string(bs), msg.Version); err != nil {
 		return err
 	}
 

@@ -30,7 +30,7 @@ func TestMessage(t *testing.T) {
 	givenAction := EventAdd
 	caseDesc := "normal"
 
-	msg, err := NewMessage(givenKey, []byte(givenA6Str), givenAction)
+	msg, err := NewMessage(givenKey, []byte(givenA6Str), 1, givenAction)
 	assert.Nil(t, err, caseDesc)
 
 	assert.Equal(t, givenKey, msg.Key, caseDesc)
@@ -68,7 +68,7 @@ func TestServiceFilter(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		msg, err := NewMessage(tc.key, []byte(tc.value), EventAdd)
+		msg, err := NewMessage(tc.key, []byte(tc.value), 1, EventAdd)
 		assert.Nil(t, err, tc.desc)
 		assert.Equal(t, tc.ret, ServiceFilter(msg))
 	}
@@ -105,9 +105,9 @@ func TestServiceReplace(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		msg, err := NewMessage(tc.key, []byte(tc.value), EventAdd)
+		msg, err := NewMessage(tc.key, []byte(tc.value), 1, EventAdd)
 		assert.Nil(t, err, tc.desc)
-		newMsg, err := NewMessage(tc.key, []byte(tc.newValue), EventAdd)
+		newMsg, err := NewMessage(tc.key, []byte(tc.newValue), 1, EventAdd)
 		assert.Nil(t, err, tc.desc)
 		assert.Equal(t, tc.ret, ServiceUpdate(msg, newMsg), tc.desc)
 	}
@@ -144,9 +144,9 @@ func TestServiceUpdate(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		msg, err := NewMessage(tc.key, []byte(tc.value), EventAdd)
+		msg, err := NewMessage(tc.key, []byte(tc.value), 1, EventAdd)
 		assert.Nil(t, err, tc.desc)
-		newMsg, err := NewMessage(tc.key, []byte(tc.newValue), EventAdd)
+		newMsg, err := NewMessage(tc.key, []byte(tc.newValue), 1, EventAdd)
 		assert.Nil(t, err, tc.desc)
 		assert.Equal(t, tc.ret, ServiceReplace(msg, newMsg), tc.desc)
 	}

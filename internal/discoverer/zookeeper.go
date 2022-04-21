@@ -53,9 +53,17 @@ func (zd *ZookeeperDiscoverer) Query(msg *message.Message) error {
 }
 
 func (zd *ZookeeperDiscoverer) Update(oldMsg, msg *message.Message) error {
-	// TODO:
-	// Zookeeper does not need to introduce parameter information like nacos,
-	// so the Update interface cannot be triggered on the framework.
+	zkService, ok := zd.zkWatchServices.Load(oldMsg.ServiceName())
+	if !ok {
+		return nil
+	}
+	service := zkService.(*ZookeeperService)
+	service.mutex.Lock()
+	defer service.mutex.Unlock()
+	if _, ok = service.BindEntities[oldMsg.Key]; ok {
+		service.BindEntities[oldMsg.Key].Version = msg.Version
+	}
+
 	return nil
 }
 
@@ -88,6 +96,8 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, a6conf map[strin
 	for k, msg := range a6conf {
 		if _, ok = service.BindEntities[k]; !ok {
 			service.BindEntities[k] = msg
+		} else {
+			service.BindEntities[k].Version = msg.Version
 		}
 	}
 	service.mutex.Unlock()

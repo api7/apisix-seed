@@ -91,7 +91,7 @@ func testQueryService(t *testing.T, discoverer Discoverer) {
 	            {"host":"%s","port": %d,"weight":%d}
 	        ],
 	        "_discovery_type":"nacos","_service_name":"%s"}}`
-	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), message.EventAdd)
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), 1, message.EventAdd)
 	assert.Nil(t, err)
 	tests := []struct {
 		caseDesc  string
@@ -131,12 +131,12 @@ func testUpdateArgs(t *testing.T, discoverer Discoverer) {
         "_discovery_type":"nacos","_service_name":"%s"}}`
 	oldA6Str := fmt.Sprintf(oldA6StrFmt, "10.0.0.11", 8848, 10, TestService)
 
-	oldMsg, err := message.NewMessage("/apisix/routes/1", []byte(oldA6Str), message.EventAdd)
+	oldMsg, err := message.NewMessage("/apisix/routes/1", []byte(oldA6Str), 1, message.EventAdd)
 	assert.Nil(t, err)
 
 	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s","discovery_args":{"group_name":"%s"}}}`
 	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup)
-	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), message.EventAdd)
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), 1, message.EventAdd)
 	assert.Nil(t, err)
 	err = discoverer.Update(oldMsg, msg)
 	assert.Nil(t, err, caseDesc)
@@ -159,7 +159,7 @@ func testDeleteService(t *testing.T, discoverer Discoverer) {
 	// First delete the service
 	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s","discovery_args":{"group_name":"%s"}}}`
 	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup)
-	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), message.EventAdd)
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), 1, message.EventAdd)
 	assert.Nil(t, err)
 	err = discoverer.Delete(msg)
 	assert.Nil(t, err)
