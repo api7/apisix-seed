@@ -152,7 +152,7 @@ func (s *EtcdV3) Update(ctx context.Context, key, value string, version int64) e
 		return fmt.Errorf("etcd update key[%s] failed: %s", key, err)
 	}
 	if !resp.Succeeded {
-		log.Infof("etcd update key[%s] failed", key)
+		log.Infof("key[%s] may have been updated by other instances", key)
 	}
 	log.Infof("etcd update key[%s], version: %d", key, version)
 	return nil
