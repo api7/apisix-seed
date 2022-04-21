@@ -48,7 +48,7 @@ func testCommon(t *testing.T, client *EtcdV3) {
 		assert.Equal(t, value, val, "Test get key value")
 
 		// Update the key/value
-		err = client.Update(context.Background(), key, newValue)
+		err = client.Update(context.Background(), key, newValue, 1)
 		assert.Nil(t, err, "Test key update")
 
 		// Get should return the new value
