@@ -11,7 +11,7 @@ import (
 var _ = BeforeSuite(func() {
 	Expect(tools.CleanRoutes()).To(BeNil())
 	Expect(tools.NewIRegCenter("nacos").Clean()).To(BeNil())
-
+	Expect(tools.NewIRegCenter("zookeeper").Clean()).To(BeNil())
 })
 
 func TestRegcenter(t *testing.T) {

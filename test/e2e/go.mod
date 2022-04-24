@@ -3,6 +3,7 @@ module e2e
 go 1.17
 
 require (
+	github.com/go-zookeeper/zk v1.0.2
 	github.com/onsi/ginkgo/v2 v2.0.0
 	github.com/onsi/gomega v1.18.1
 )

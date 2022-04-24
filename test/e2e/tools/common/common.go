@@ -7,6 +7,7 @@ import (
 
 const (
 	NACOS_HOST     = "http://127.0.0.1:8848"
+	ZK_HOST        = "127.0.0.1:2181"
 	APISIX_HOST    = "http://127.0.0.1:9080"
 	APISIX_TOKEN   = "edd1c9f034335f136f87ad84b625c8f1"
 	DOCKER_GATEWAY = "172.50.238.1"

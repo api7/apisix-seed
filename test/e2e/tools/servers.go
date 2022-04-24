@@ -36,12 +36,12 @@ func (server *SimServer) Run() {
 	}()
 	wg.Wait()
 }
-func (server *SimServer) Register(reg IRegCenter) {
-	reg.Online(server.Node)
+func (server *SimServer) Register(reg IRegCenter) error {
+	return reg.Online(server.Node)
 }
 
-func (server *SimServer) LogOut(reg IRegCenter) {
-	reg.Offline(server.Node)
+func (server *SimServer) LogOut(reg IRegCenter) error {
+	return reg.Offline(server.Node)
 }
 
 func (server *SimServer) Stop() {
