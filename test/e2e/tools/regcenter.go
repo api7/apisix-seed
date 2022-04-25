@@ -16,6 +16,8 @@ func NewIRegCenter(name string) IRegCenter {
 	switch name {
 	case "nacos":
 		return regcenter.NewNacos()
+	case "zookeeper":
+		return regcenter.NewZookeeper()
 	}
 	return nil
 }

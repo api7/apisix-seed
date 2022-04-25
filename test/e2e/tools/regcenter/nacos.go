@@ -110,7 +110,7 @@ func (n *Nacos) deleteService(service string) error {
 	if resp.StatusCode != 200 {
 		return errors.New("delete service failed, serviceName=:" + service)
 	}
-	fmt.Println("delete service, serviceName=:" + service)
+	fmt.Println("delete service, serviceName=" + service)
 	return nil
 }
 
