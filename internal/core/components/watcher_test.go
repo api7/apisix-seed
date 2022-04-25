@@ -2,6 +2,7 @@ package components
 
 import (
 	"testing"
+	"time"
 
 	"github.com/api7/apisix-seed/internal/core/message"
 
@@ -171,4 +172,6 @@ func TestWatcherWatch(t *testing.T) {
 	deleteMsg, err := message.NewMessage(givenKey, nil, 1, message.EventDelete)
 	assert.Nil(t, err, caseDesc)
 	watchCh <- []*message.Message{deleteMsg}
+
+	time.Sleep(3 * time.Second)
 }
