@@ -6,12 +6,12 @@
 Do service discovery for Apache APISIX on the Control Plane
 
 # What's APISIX-Seed
-Apache APISIX is a dynamic, real-time, high-performance API gateway.
+[Apache APISIX](https://github.com/apache/apisix) is a dynamic, real-time, high-performance API gateway.
 
 In terms of architecture design, Apache APISIX is divided into two parts: data plane and control plane. The data plane is Apache APISIX itself, which is the component of the traffic proxy and offers many full-featured plugins covering areas such as authentication, security, traffic control, serverless, analytics & monitoring, transformations and logging.
 The control plane is mainly used to manage routing, and implement the configuration center through etcd.
 
-For cloud-native gateways, it is necessary to dynamically obtain the latest service instance information (service discovery) through the service registry. Currently, Apache APISIX already supports this feature in the data plane.
+For cloud-native gateways, it is necessary to dynamically obtain the latest service instance information (service discovery) through the service registry. Currently, Apache APISIX already supports [service discovery](https://github.com/apache/apisix/blob/master/docs/en/latest/discovery.md) in the data plane.
 
 This project is a component of Apache APISIX to implement service discovery in the control plane. It supports cluster deployment. At present, we have supported zookeeper and nacos. We will also support more service registries.
 
