@@ -87,7 +87,7 @@ You can easily understand each configuration item, we will not explain it additi
 
 start APISIX-Seed:
 ```bash
-APISIX_SEED_WORKDIR /usr/local/apisix-seed /usr/local/apisix-seed/apisix-seed
+APISIX_SEED_WORKDIR=/usr/local/apisix-seed /usr/local/apisix-seed/apisix-seed
 ```
 
 ## step 3: Register the upstream service
