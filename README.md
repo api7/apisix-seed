@@ -33,7 +33,7 @@ The following figure is the topology diagram of APISIX-Seed deployment.
 # How it works
 We use the go language to implement APISIX-Seed. The flow diagram:
 
-![apisix-seed flow diagram](docs/assets/images/apisix-seed%20workflow.png)
+![apisix-seed flow diagram](docs/assets/images/apisix-seed%20workflow.svg)
 
 APISIX-Seed completes data exchange by watching the changes of etcd and service registry at the same time.
 
