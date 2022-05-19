@@ -17,7 +17,7 @@ This project is a component of Apache APISIX to implement service discovery in t
 
 The following figure is the topology diagram of APISIX-Seed deployment.
 
-![apisix-seed overview](./docs/assets/images/apisix-seed%20overview.png)
+![apisix-seed overview](./docs/assets/images/apisix-seed-overview.png)
 
 # Why APISIX-Seed
 - Network topology becomes simpler
@@ -31,27 +31,23 @@ The following figure is the topology diagram of APISIX-Seed deployment.
 > Service discovery configuration needs to be configured once per APISIX instance. By introducing APISIX-Seed, Apache APISIX will be indifferent to the configuration changes of the service registry.
 
 # How it works
-We use the go language to implement APISIX-Seed. The flow diagram:
+APISIX-Seed completes data exchange by observing changes in etcd and service registry at the same time.
 
-![apisix-seed flow diagram](./docs/assets/images/apisix-seed%20workflow.svg)
+As shown in the above architecture diagram, the workflow of APISIX-Seed is as follows:
 
-APISIX-Seed completes data exchange by watching the changes of etcd and service registry at the same time.
+1. Register an upstream with APISIX and specify the service discovery type. APISIX-Seed will watch APISIX resource changes in etcd, filter discovery types, and obtain service names.
 
-The process is as follows:
+2. APISIX-Seed subscribes the specified service name to the service registry to obtain changes to the corresponding service.
 
-1、APISIX registers an upstream and specifies the service discovery type to etcd. 
+3. After registering the service with the service registry, APISIX-Seed will obtain the new service information and write the updated service node into etcd.
 
-2、APISIX-Seed watches the resource changes of APISIX in etcd and filters the discovery type and obtains the service name.
+4. When the corresponding resources in etcd change, APISIX worker will refresh the latest service node information to memory.
 
-3、APISIX-Seed binds the service to the etcd resource and starts watching the service in the service registry.
+**It should be noted that after the introduction of APISIX-Seed, if the service of the registry changes frequently, the data in etcd will also change frequently.**
 
-4、The client registers the service in the service registry.
+**The [multi-version concurrency control](https://etcd.io/docs/v3.5/learning/api/#revisions) data model in etcd keeps an exact history of the keyspace.**
 
-5、APISIX-Seed gets the service changes in the service registry.
-
-6 、APISIX-Seed queries the bound etcd resource information through the service name, and writes the updated service node to etcd.
-
-7、The APISIX worker watches etcd changes and refreshes the service node information to the memory.
+**So, it is best to set the `--auto-compaction` option when starting etcd to compress the history periodically to avoid etcd eventually eventually exhaust its storage space.**
 
 # Development
 
