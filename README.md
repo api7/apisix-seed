@@ -49,6 +49,11 @@ As shown in the above architecture diagram, the workflow of APISIX-Seed is as fo
 
 **So, it is best to set the `--auto-compaction` option when starting etcd to compress the history periodically to avoid etcd eventually eventually exhaust its storage space.**
 
+# Supported service registry
+
+- [Nacos](#step-1-deploy-nacos)
+- [Zookeeper](docs/en/latest/zookeeper.md)
+
 # Development
 
 The following will take the nacos service registry as an example to show how to deploy and use APISIX-Seed to complete service discovery. Before starting, please make sure that you have installed Apache APISIX correctly. And make sure it can work properly.
