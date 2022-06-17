@@ -26,7 +26,7 @@ description: This document contains information about how to use zookeeper as se
 #
 -->
 
-### Setting `apisix-seed` and Zookeeper
+## Setting `apisix-seed` and Zookeeper
 
 The configuration steps are as follows:
 
@@ -68,7 +68,7 @@ discovery:
 ./apisix-seed
 ```
 
-### Setting `APISIX` Route and Upstream
+## Setting `APISIX` Route and Upstream
 
 Set a route, the request path is `/zk/*`, the upstream uses zookeeper as service discovery, and the service name
 is `APISIX-ZK`.
@@ -86,7 +86,7 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 \
 }'
 ```
 
-### Register Service and verify Request
+## Register Service and verify Request
 
 1. Service registration using Zookeeper CLI
 
@@ -96,7 +96,7 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 \
 # Login Container
 docker exec -it ${CONTAINERID} /bin/bash
 # Login Zookeeper Client
-oot@ae2f093337c1:/apache-zookeeper-3.7.0-bin# ./bin/zkCli.sh
+root@ae2f093337c1:/apache-zookeeper-3.7.0-bin# ./bin/zkCli.sh
 # Register Service
 [zk: localhost:2181(CONNECTED) 0] create /zookeeper/APISIX-ZK '{"host":"127.0.0.1:1980","weight":100}'
 ```

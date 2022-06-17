@@ -26,7 +26,7 @@ description: 本篇文档介绍了如何通过 apisix-seed 在 Apache APISIX 中
 #
 -->
 
-### 环境准备：配置 `apisix-seed` 和 ZooKeeper
+## 环境准备：配置 `apisix-seed` 和 ZooKeeper
 
 1. 启动 ZooKeeper
 
@@ -66,7 +66,7 @@ discovery:
 ./apisix-seed
 ```
 
-### 设置 APISIX 路由和上游
+## 设置 APISIX 路由和上游
 
 通过以下命令设置路由，请求路径设置为 `/zk/*`，上游使用 ZooKeeper 作为服务发现，服务名称为 `APISIX-ZK`。
 
@@ -83,7 +83,7 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 \
 }'
 ```
 
-### 注册服务
+## 注册服务
 
 使用 ZooKeeper-cli 注册服务
 
@@ -93,7 +93,7 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 \
 # 登陆容器
 docker exec -it ${CONTAINERID} /bin/bash
 # 登陆 ZooKeeper 客户端
-oot@ae2f093337c1:/apache-zookeeper-3.7.0-bin# ./bin/zkCli.sh
+root@ae2f093337c1:/apache-zookeeper-3.7.0-bin# ./bin/zkCli.sh
 # 注册服务
 [zk: localhost:2181(CONNECTED) 0] create /zookeeper/APISIX-ZK '{"host":"127.0.0.1","port":1980,"weight":100}'
 ```
@@ -104,7 +104,7 @@ oot@ae2f093337c1:/apache-zookeeper-3.7.0-bin# ./bin/zkCli.sh
 Created /zookeeper/APISIX-ZK
 ```
 
-### 请求验证
+## 请求验证
 
 通过以下命令请求路由：
 
