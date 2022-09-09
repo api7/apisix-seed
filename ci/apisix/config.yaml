@@ -1,11 +1,12 @@
-etcd:
-  host:                           # it's possible to define multiple etcd hosts addresses of the same etcd cluster.
-    - "http://172.50.238.20:2379"     # multiple etcd address, if your etcd cluster enables TLS, please use https scheme,
-  prefix: /apisix                 # apisix configurations prefix
-  timeout: 30                     # 30 seconds
-  #resync_delay: 5                # when sync failed and a rest is needed, resync after the configured seconds plus 50% random jitter
-  #health_check_timeout: 10       # etcd retry the unhealthy nodes after the configured seconds
-  health_check_retry: 2           # etcd retry time that only affects the health check, default 2
+deployment:
+  etcd:
+    host:                           # it's possible to define multiple etcd hosts addresses of the same etcd cluster.
+      - "http://172.50.238.20:2379"     # multiple etcd address, if your etcd cluster enables TLS, please use https scheme,
+    prefix: /apisix                 # apisix configurations prefix
+    timeout: 30                     # 30 seconds
+    #resync_delay: 5                # when sync failed and a rest is needed, resync after the configured seconds plus 50% random jitter
+    #health_check_timeout: 10       # etcd retry the unhealthy nodes after the configured seconds
+    startup_retry: 2           # etcd retry time that only affects the health check, default 2
 apisix:
   allow_admin:               # http://nginx.org/en/docs/http/ngx_http_access_module.html#allow
     - 0.0.0.0/0
