@@ -9,6 +9,7 @@ services:
     depends_on:
       - etcd
     ports:
+      - "9180:9180/tcp"
       - "9080:9080/tcp"
       - "9443:9443/tcp"
     networks:

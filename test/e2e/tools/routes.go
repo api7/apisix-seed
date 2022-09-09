@@ -28,7 +28,7 @@ func (r *Route) Marshal() string {
 }
 
 func (r *Route) Do() error {
-	url := common.APISIX_HOST + "/apisix/admin/routes/" + r.ID
+	url := common.APISIX_CP_HOST + "/apisix/admin/routes/" + r.ID
 	req, err := http.NewRequest("PUT", url, strings.NewReader(r.Marshal()))
 	if err != nil {
 		return err
@@ -71,7 +71,7 @@ type routesResp struct {
 }
 
 func getRoutes() ([]string, error) {
-	url := common.APISIX_HOST + "/apisix/admin/routes"
+	url := common.APISIX_CP_HOST + "/apisix/admin/routes"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func getRoutes() ([]string, error) {
 }
 
 func deleteRoute(id string) error {
-	url := common.APISIX_HOST + "/apisix/admin/routes/" + id
+	url := common.APISIX_CP_HOST + "/apisix/admin/routes/" + id
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		panic(err)

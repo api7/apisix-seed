@@ -8,7 +8,8 @@ import (
 const (
 	NACOS_HOST     = "http://127.0.0.1:8848"
 	ZK_HOST        = "127.0.0.1:2181"
-	APISIX_HOST    = "http://127.0.0.1:9080"
+	APISIX_CP_HOST = "http://127.0.0.1:9180"
+	APISIX_DP_HOST = "http://127.0.0.1:9080"
 	APISIX_TOKEN   = "edd1c9f034335f136f87ad84b625c8f1"
 	DOCKER_GATEWAY = "172.50.238.1"
 )
@@ -32,7 +33,7 @@ func (n *Node) String() string {
 }
 
 func Request(uri string) (int, string, error) {
-	url := APISIX_HOST + uri
+	url := APISIX_DP_HOST + uri
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return 0, "", err
