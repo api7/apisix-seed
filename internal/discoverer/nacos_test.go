@@ -26,7 +26,7 @@ prefix: ~
 
 var naYamlConfigWithPasswd = `
 host:
-  - "https://nacos:nacos@127.0.0.1:8858"
+  - "http://nacos:nacos@127.0.0.1:8858"
 `
 
 func getNaConfig(str string) (*conf.Nacos, error) {
@@ -55,11 +55,11 @@ func TestServerConfig(t *testing.T) {
 	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 
 	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
-		assert.True(t, auth == "username:password", "Test auth")
+		assert.True(t, auth == "nacos:nacos", "Test auth")
 		assert.Len(t, serverConfigs, 1)
 
 		config := serverConfigs[0]
-		assert.True(t, config.Scheme == "https", "Test scheme")
+		assert.True(t, config.Scheme == "http", "Test scheme")
 		assert.True(t, config.Port == 8858, "Test port")
 	}
 
