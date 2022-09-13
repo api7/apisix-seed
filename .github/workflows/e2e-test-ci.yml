@@ -15,9 +15,6 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v2
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-
     - name: setup go
       uses: actions/setup-go@v2.1.5
       with:
@@ -30,6 +27,9 @@ jobs:
 
     - name: install ginkgo cli
       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
 
     - name: run tests
       working-directory: ./test/e2e
