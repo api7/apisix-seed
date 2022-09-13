@@ -96,14 +96,14 @@ func TestZookeeperDiscoverer(t *testing.T) {
 	msgChan := dis.Watch()
 
 	// create service
-	err = createZkService(conn, svcPath, `{"host":"127.0.0.1","port":1980,"weight":100}`)
+	err = createZkService(conn, svcPath, `[{"host":"127.0.0.1","port":1980,"weight":100}]`)
 	assert.Nil(t, err)
 	newMsg := <-msgChan
 	expectValue := `{"uri":"/hh","upstream":{"_discovery_type":"zookeeper","_service_name":"svc","nodes":[{"host":"127.0.0.1","port":1980,"weight":100}]}}`
 	assert.JSONEq(t, expectValue, zkMsg2Value(newMsg))
 
 	// update service
-	err = updateZkService(conn, svcPath, `{"host":"127.0.0.1","port":1981,"weight":100}`)
+	err = updateZkService(conn, svcPath, `[{"host":"127.0.0.1","port":1981,"weight":100}]`)
 	assert.Nil(t, err)
 	newMsg = <-msgChan
 	expectValue = `{"uri":"/hh","upstream":{"_discovery_type":"zookeeper","_service_name":"svc","nodes":[{"host":"127.0.0.1","port":1981,"weight":100}]}}`
