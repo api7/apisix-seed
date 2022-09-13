@@ -26,7 +26,7 @@ prefix: ~
 
 var naYamlConfigWithPasswd = `
 host:
-  - "https://username:password@console.nacos.io:8858"
+  - "https://nacos:nacos@127.0.0.1:8858"
 `
 
 func getNaConfig(str string) (*conf.Nacos, error) {
