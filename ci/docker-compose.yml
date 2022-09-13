@@ -43,8 +43,6 @@ services:
       apisix-seed:
         ipv4_address: 172.50.238.30
 
-
-
   ## Zookeeper
   zookeeper:
     image: zookeeper:3.7.0

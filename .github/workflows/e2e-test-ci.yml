@@ -23,7 +23,7 @@ jobs:
     - name: startup apisix, nacos and apisix-seed
       run: |
         docker-compose -f ci/docker-compose.yml up -d
-        sleep 10
+        sleep 5
 
     - name: install ginkgo cli
       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
