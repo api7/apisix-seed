@@ -82,9 +82,6 @@ func (n *Nacos) getServices() ([]string, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
-	if err != nil {
-		panic(err)
-	}
 	body, err := ioutil.ReadAll(resp.Body)
 	servResp := &servicesResp{}
 	err = json.Unmarshal(body, servResp)
