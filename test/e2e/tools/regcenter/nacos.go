@@ -81,6 +81,7 @@ func (n *Nacos) getServices() ([]string, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	fmt.Println(err)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	servResp := &servicesResp{}
