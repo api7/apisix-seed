@@ -15,6 +15,9 @@ jobs:
     - name: Check out code
       uses: actions/checkout@v2
 
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+
     - name: setup go
       uses: actions/setup-go@v2.1.5
       with:
