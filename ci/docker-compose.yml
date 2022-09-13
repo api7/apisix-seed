@@ -34,8 +34,8 @@ services:
     image: nacos/nacos-server:1.4.1
     environment:
       - MODE=standalone
-      - JVM_XMS=512m
-      - JVM_XMX=512m
+      - JVM_XMS=128m
+      - JVM_XMX=128m
     restart: unless-stopped
     ports:
       - "8848:8848/tcp"
@@ -48,8 +48,8 @@ services:
     environment:
       - NACOS_AUTH_ENABLE=true
       - MODE=standalone
-      - JVM_XMS=512m
-      - JVM_XMX=512m
+      - JVM_XMS=128m
+      - JVM_XMX=128m
     restart: unless-stopped
     ports:
       - "8858:8848/tcp"
