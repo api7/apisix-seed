@@ -43,19 +43,7 @@ services:
       apisix-seed:
         ipv4_address: 172.50.238.30
 
-  nacos_auth:
-    image: nacos/nacos-server:1.4.1
-    environment:
-      - NACOS_AUTH_ENABLE=true
-      - MODE=standalone
-      - JVM_XMS=128m
-      - JVM_XMX=128m
-    restart: unless-stopped
-    ports:
-      - "8858:8848/tcp"
-    networks:
-      apisix-seed:
-        ipv4_address: 172.50.238.31
+
 
   ## Zookeeper
   zookeeper:
