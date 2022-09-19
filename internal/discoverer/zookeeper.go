@@ -107,13 +107,13 @@ func (zd *ZookeeperDiscoverer) fetchService(serviceName string, a6conf map[strin
 		return err
 	}
 
-	node := &message.Node{}
-	err = json.Unmarshal(serviceInfo, &node)
+	var nodes []*message.Node
+	err = json.Unmarshal(serviceInfo, &nodes)
 	if err != nil {
 		return err
 	}
 
-	zd.sendMessage(service, []*message.Node{node})
+	zd.sendMessage(service, nodes)
 
 	return nil
 }

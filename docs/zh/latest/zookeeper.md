@@ -95,7 +95,7 @@ docker exec -it ${CONTAINERID} /bin/bash
 # 登陆 ZooKeeper 客户端
 root@ae2f093337c1:/apache-zookeeper-3.7.0-bin# ./bin/zkCli.sh
 # 注册服务
-[zk: localhost:2181(CONNECTED) 0] create /zookeeper/APISIX-ZK '{"host":"127.0.0.1","port":1980,"weight":100}'
+[zk: localhost:2181(CONNECTED) 0] create /zookeeper/APISIX-ZK '[{"host":"127.0.0.1","port":1980,"weight":100}]'
 ```
 
 返回结果如下：

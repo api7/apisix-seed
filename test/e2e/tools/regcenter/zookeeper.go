@@ -25,7 +25,7 @@ func NewZookeeper() *Zookeeper {
 }
 
 func (zookeeper *Zookeeper) Online(node *common.Node) error {
-	nodeStr := `{"host":"` + common.DOCKER_GATEWAY + `","port":` + node.Port + `}`
+	nodeStr := `[{"host":"` + common.DOCKER_GATEWAY + `","port":` + node.Port + `}]`
 	_, err := zookeeper.conn.Create(zookeeper.prefix+"/"+node.ServiceName, []byte(nodeStr), 0, zk.WorldACL(zk.PermAll))
 	if err != nil {
 		return err
