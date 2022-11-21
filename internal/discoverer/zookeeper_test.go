@@ -88,7 +88,7 @@ func TestZookeeperDiscoverer(t *testing.T) {
 
 	key := "/apisix/routes/1"
 	value := `{"uri":"/hh","upstream":{"discovery_type":"zookeeper","service_name":"svc"}}`
-	msg, err := message.NewMessage(key, []byte(value), 1, message.EventAdd)
+	msg, err := message.NewMessage(key, []byte(value), 1, message.EventAdd, message.A6RoutesConf)
 	assert.Nil(t, err)
 
 	err = dis.Query(msg)

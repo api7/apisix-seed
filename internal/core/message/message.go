@@ -21,10 +21,10 @@ type Message struct {
 	Value   string
 	Version int64
 	Action  StoreEvent
-	a6Conf  *A6Conf
+	a6Conf  A6Conf
 }
 
-func NewMessage(key string, value []byte, version int64, action StoreEvent) (*Message, error) {
+func NewMessage(key string, value []byte, version int64, action StoreEvent, a6Type int) (*Message, error) {
 	msg := &Message{
 		Key:     key,
 		Value:   string(value),
@@ -32,7 +32,7 @@ func NewMessage(key string, value []byte, version int64, action StoreEvent) (*Me
 		Action:  action,
 	}
 	if len(value) != 0 {
-		a6, err := NewA6Conf(value)
+		a6, err := NewA6Conf(value, a6Type)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +42,7 @@ func NewMessage(key string, value []byte, version int64, action StoreEvent) (*Me
 }
 
 func (msg *Message) ServiceName() string {
-	up := msg.a6Conf.Upstream
+	up := msg.a6Conf.GetUpstream()
 	if up.ServiceName != "" {
 		return up.ServiceName
 	}
@@ -50,7 +50,7 @@ func (msg *Message) ServiceName() string {
 }
 
 func (msg *Message) DiscoveryType() string {
-	up := msg.a6Conf.Upstream
+	up := msg.a6Conf.GetUpstream()
 	if up.DiscoveryType != "" {
 		return up.DiscoveryType
 	}
@@ -58,7 +58,7 @@ func (msg *Message) DiscoveryType() string {
 }
 
 func (msg *Message) DiscoveryArgs() map[string]string {
-	up := msg.a6Conf.Upstream
+	up := msg.a6Conf.GetUpstream()
 	if up.DiscoveryArgs == nil {
 		return nil
 	}
