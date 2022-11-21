@@ -361,19 +361,19 @@ func TestInject_Upstreams(t *testing.T) {
 
 func TestMarshal_Upstreams(t *testing.T) {
 	givenA6Str := `{
-    "status": 1,
-    "id": "3",
-    "scheme": "http",
-	"pass_host": "pass",
-	"type": "roundrobin",
-	"hash_on": "vars",
-	"discovery_type": "nacos",
-	"service_name": "APISIX-NACOS",
-	"discovery_args": {
-		"group_name": "DEFAULT_GROUP"
-	},
-    "create_time": 1648871506,
-    "update_time": 1648871506
+    "status":1,
+    "id":"3",
+    "scheme":"http",
+    "pass_host":"pass",
+    "type":"roundrobin",
+    "hash_on":"vars",
+    "discovery_type":"nacos",
+    "service_name":"APISIX-NACOS",
+    "discovery_args":{
+        "group_name":"DEFAULT_GROUP"
+    },
+    "create_time":1648871506,
+    "update_time":1648871506
 }`
 	nodes := []*Node{
 		{Host: "192.168.1.1", Port: 80, Weight: 1},
@@ -403,7 +403,7 @@ func TestMarshal_Upstreams(t *testing.T) {
 			"port": 80,
 			"weight": 1
 		}
-	]
+	],
     "create_time": 1648871506,
     "update_time": 1648871506
 }`
