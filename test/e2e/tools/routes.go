@@ -38,7 +38,7 @@ func NewUpstream(id, serviceName, regType string) *Upstream {
 type Route struct {
 	URI        string `json:"uri"`
 	ID         string
-	UpstreamID string    `json:"upstream_ID,omitempty"`
+	UpstreamID string    `json:"upstream_id,omitempty"`
 	Upstream   *Upstream `json:"upstream,omitempty"`
 }
 
