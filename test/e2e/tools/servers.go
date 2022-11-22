@@ -65,6 +65,7 @@ func NewSimServer(host, port, serviceName string) *SimServer {
 		running: false,
 	}
 }
+
 func CreateSimServer(servers []*SimServer) error {
 	for _, s := range servers {
 		s.Run()
@@ -76,4 +77,10 @@ func CreateSimServer(servers []*SimServer) error {
 		}
 	}
 	return nil
+}
+
+func DestroySimServer(servers []*SimServer) {
+	for _, s := range servers {
+		s.Stop()
+	}
 }

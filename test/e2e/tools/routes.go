@@ -3,23 +3,43 @@ package tools
 import (
 	"e2e/tools/common"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"strings"
 )
 
 type Upstream struct {
+	ID            string
 	LBType        string `json:"type"`
 	ServiceName   string `json:"service_name"`
 	DiscoveryType string `json:"discovery_type"`
 	DiscoveryArgs map[string]interface{}
 }
+
+func (up *Upstream) Marshal() string {
+	str, _ := json.Marshal(up)
+	return string(str)
+}
+
+func (up *Upstream) Do() error {
+	_, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, "PUT", up.Marshal())
+	return err
+}
+
+func NewUpstream(id, serviceName, regType string) *Upstream {
+	return &Upstream{
+		ID:            id,
+		LBType:        "roundrobin",
+		ServiceName:   serviceName,
+		DiscoveryType: regType,
+		DiscoveryArgs: make(map[string]interface{}),
+	}
+}
+
 type Route struct {
-	URI      string `json:"uri"`
-	ID       string
-	Upstream *Upstream `json:"upstream"`
+	URI        string `json:"uri"`
+	ID         string
+	UpstreamID string    `json:"upstream_ID,omitempty"`
+	Upstream   *Upstream `json:"upstream,omitempty"`
 }
 
 func (r *Route) Marshal() string {
@@ -28,63 +48,38 @@ func (r *Route) Marshal() string {
 }
 
 func (r *Route) Do() error {
-	url := common.APISIX_CP_HOST + "/apisix/admin/routes/" + r.ID
-	req, err := http.NewRequest("PUT", url, strings.NewReader(r.Marshal()))
-	if err != nil {
-		return err
-	}
-	req.Header.Add("X-API-KEY", common.APISIX_TOKEN)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 201 && resp.StatusCode != 200 {
-		return errors.New(fmt.Sprintf("create route failed: /apisix/admin/routes/%s", r.ID))
-	}
-	fmt.Println("create route successful: /apisix/admin/routes/" + r.ID)
-	return nil
+	_, err := common.RequestCP("/apisix/admin/routes/"+r.ID, "PUT", r.Marshal())
+	return err
 }
 
 func NewRoute(id, uri, serviceName, regType string) *Route {
 	return &Route{
-		URI: uri,
-		ID:  id,
-		Upstream: &Upstream{
-			LBType:        "roundrobin",
-			ServiceName:   serviceName,
-			DiscoveryType: regType,
-			DiscoveryArgs: make(map[string]interface{}),
-		},
+		URI:      uri,
+		ID:       id,
+		Upstream: NewUpstream("", serviceName, regType),
+	}
+}
+
+func NewRouteWithUpstreamID(id, uri, uid string) *Route {
+	return &Route{
+		URI:        uri,
+		ID:         id,
+		UpstreamID: uid,
 	}
 }
 
 type routesResp struct {
-	Node struct {
-		Nodes []struct {
-			Value struct {
-				ID string `json:"ID"`
-			} `json:"value"`
-		} `json:"nodes"`
-	} `json:"node"`
+	List []struct {
+		Value struct {
+			ID string `json:"ID"`
+		} `json:"value"`
+	} `json:"list"`
 }
 
-func getRoutes() ([]string, error) {
-	url := common.APISIX_CP_HOST + "/apisix/admin/routes"
-	req, err := http.NewRequest("GET", url, nil)
+func getResourcesID(resource string) ([]string, error) {
+	resp, err := common.RequestCP("/apisix/admin/"+resource, "GET", "")
 	if err != nil {
 		return nil, err
-	}
-	req.Header.Add("X-API-KEY", common.APISIX_TOKEN)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("get routes failed, stats: %s", resp.Status))
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -96,40 +91,26 @@ func getRoutes() ([]string, error) {
 		}
 		return nil, err
 	}
-	keys := make([]string, len(rouResp.Node.Nodes))
-	for i, v := range rouResp.Node.Nodes {
+	keys := make([]string, len(rouResp.List))
+	for i, v := range rouResp.List {
 		keys[i] = v.Value.ID
 	}
 	return keys, nil
 }
 
-func deleteRoute(id string) error {
-	url := common.APISIX_CP_HOST + "/apisix/admin/routes/" + id
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		panic(err)
-	}
-	req.Header.Add("X-API-KEY", common.APISIX_TOKEN)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return errors.New("delete route failed: /apisxi/routes/" + id)
-	}
-	fmt.Println("delete route: ", "/apisxi/routes/"+id)
-	return nil
+func deleteResource(resource, id string) error {
+	_, err := common.RequestCP("/apisix/admin/"+resource+"/"+id, "DELETE", "")
+	return err
 }
-func CleanRoutes() error {
+
+func CleanResources(resource string) error {
 	fmt.Println("clean all routes from etcd...")
-	ids, err := getRoutes()
+	ids, err := getResourcesID(resource)
 	if err != nil {
 		return err
 	}
 	for _, id := range ids {
-		err = deleteRoute(id)
+		err = deleteResource(resource, id)
 		if err != nil {
 			return err
 		}
@@ -140,6 +121,16 @@ func CleanRoutes() error {
 func CreateRoutes(routes []*Route) error {
 	for _, r := range routes {
 		err := r.Do()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CreateUpstreams(upstreams []*Upstream) error {
+	for _, up := range upstreams {
+		err := up.Do()
 		if err != nil {
 			return err
 		}
