@@ -20,29 +20,52 @@ type Upstream struct {
 	ServiceName      string       `json:"service_name,omitempty"`
 }
 
-type A6Conf struct {
-	Upstream Upstream               `json:"upstream"`
-	All      map[string]interface{} `json:"-"`
+const (
+	A6RoutesConf    = 0
+	A6UpstreamsConf = 1
+	A6ServicesConf  = 2
+)
+
+func ToA6Type(prefix string) int {
+	if strings.HasSuffix(prefix, "routes") {
+		return A6RoutesConf
+	}
+	if strings.HasSuffix(prefix, "upstreams") {
+		return A6UpstreamsConf
+	}
+	if strings.HasSuffix(prefix, "services") {
+		return A6ServicesConf
+	}
+	return A6RoutesConf
 }
 
-func NewA6Conf(value []byte) (*A6Conf, error) {
-	a6 := &A6Conf{
-		All: make(map[string]interface{}),
-	}
-	err := unmarshal(value, a6)
-	if err != nil {
-		return nil, err
-	}
-	return a6, nil
+type A6Conf interface {
+	GetAll() *map[string]interface{}
+	Inject(nodes interface{})
+	Marshal() ([]byte, error)
+	GetUpstream() Upstream
 }
 
-func unmarshal(data []byte, v *A6Conf) error {
+func NewA6Conf(value []byte, a6Type int) (A6Conf, error) {
+	switch a6Type {
+	case A6RoutesConf:
+		return NewRoutes(value)
+	case A6UpstreamsConf:
+		return NewUpstreams(value)
+	case A6ServicesConf:
+		return NewServices(value)
+	default:
+		return NewRoutes(value)
+	}
+}
+
+func unmarshal(data []byte, v A6Conf) error {
 	err := json.Unmarshal(data, v)
 	if err != nil {
 		return err
 	}
 
-	err = json.Unmarshal(data, &v.All)
+	err = json.Unmarshal(data, v.GetAll())
 	if err != nil {
 		return err
 	}
@@ -50,18 +73,8 @@ func unmarshal(data []byte, v *A6Conf) error {
 	return nil
 }
 
-func (a6 *A6Conf) Inject(nodes interface{}) {
-	a6.Upstream.Nodes = nodes
-}
-
-func (a6 *A6Conf) Marshal() ([]byte, error) {
-	a6.embedElm(reflect.ValueOf(a6), a6.All)
-
-	return json.Marshal(a6.All)
-}
-
 // Embed the latest value into `all` map
-func (a6 *A6Conf) embedElm(v reflect.Value, all map[string]interface{}) {
+func embedElm(v reflect.Value, all map[string]interface{}) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
@@ -96,15 +109,117 @@ func (a6 *A6Conf) embedElm(v reflect.Value, all map[string]interface{}) {
 		if val.Kind() == reflect.Struct {
 			// handle struct embedding
 			if field.Anonymous {
-				a6.embedElm(val, all)
+				embedElm(val, all)
 			} else {
 				if _, ok := all[tagName]; !ok {
 					all[tagName] = make(map[string]interface{})
 				}
-				a6.embedElm(val, all[tagName].(map[string]interface{}))
+				embedElm(val, all[tagName].(map[string]interface{}))
 			}
 		} else {
 			all[tagName] = val.Interface()
 		}
 	}
+}
+
+type Upstreams struct {
+	Upstream
+	All map[string]interface{} `json:"-"`
+}
+
+func (ups *Upstreams) GetAll() *map[string]interface{} {
+	return &ups.All
+}
+
+func (ups *Upstreams) Marshal() ([]byte, error) {
+	embedElm(reflect.ValueOf(ups), ups.All)
+
+	return json.Marshal(ups.All)
+}
+
+func (ups *Upstreams) Inject(nodes interface{}) {
+	ups.Nodes = nodes
+}
+
+func (ups *Upstreams) GetUpstream() Upstream {
+	return ups.Upstream
+}
+
+func NewUpstreams(value []byte) (A6Conf, error) {
+	ups := &Upstreams{
+		All: make(map[string]interface{}),
+	}
+	err := unmarshal(value, ups)
+	if err != nil {
+		return nil, err
+	}
+	return ups, nil
+}
+
+type Routes struct {
+	Upstream Upstream               `json:"upstream"`
+	All      map[string]interface{} `json:"-"`
+}
+
+func (routes *Routes) GetAll() *map[string]interface{} {
+	return &routes.All
+}
+
+func (routes *Routes) Marshal() ([]byte, error) {
+	embedElm(reflect.ValueOf(routes), routes.All)
+
+	return json.Marshal(routes.All)
+}
+
+func (routes *Routes) Inject(nodes interface{}) {
+	routes.Upstream.Nodes = nodes
+}
+
+func (routes *Routes) GetUpstream() Upstream {
+	return routes.Upstream
+}
+
+func NewRoutes(value []byte) (A6Conf, error) {
+	routes := &Routes{
+		All: make(map[string]interface{}),
+	}
+	err := unmarshal(value, routes)
+	if err != nil {
+		return nil, err
+	}
+	return routes, nil
+}
+
+type Services struct {
+	Upstream Upstream               `json:"upstream"`
+	All      map[string]interface{} `json:"-"`
+}
+
+func (services *Services) GetAll() *map[string]interface{} {
+	return &services.All
+}
+
+func (services *Services) Marshal() ([]byte, error) {
+	embedElm(reflect.ValueOf(services), services.All)
+
+	return json.Marshal(services.All)
+}
+
+func (services *Services) Inject(nodes interface{}) {
+	services.Upstream.Nodes = nodes
+}
+
+func (services *Services) GetUpstream() Upstream {
+	return services.Upstream
+}
+
+func NewServices(value []byte) (A6Conf, error) {
+	services := &Services{
+		All: make(map[string]interface{}),
+	}
+	err := unmarshal(value, services)
+	if err != nil {
+		return nil, err
+	}
+	return services, nil
 }

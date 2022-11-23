@@ -38,7 +38,7 @@ func TestWatcherInit(t *testing.T) {
 	mStg.On("List", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		assert.Equal(t, givenOpt.BasePath, args[0])
 	}).Return(func() []*message.Message {
-		msg, err := message.NewMessage(givenKey, []byte(givenA6Str), 1, message.EventAdd)
+		msg, err := message.NewMessage(givenKey, []byte(givenA6Str), 1, message.EventAdd, message.A6RoutesConf)
 		assert.Nil(t, err, caseDesc)
 		return []*message.Message{msg}
 	}(), nil)
@@ -138,7 +138,7 @@ func TestWatcherWatch(t *testing.T) {
         }
     }
 }`
-	queryMsg, err := message.NewMessage(givenKey, []byte(givenA6Str), 1, message.EventAdd)
+	queryMsg, err := message.NewMessage(givenKey, []byte(givenA6Str), 1, message.EventAdd, message.A6RoutesConf)
 	assert.Nil(t, err, caseDesc)
 	watchCh <- []*message.Message{queryMsg}
 
@@ -153,7 +153,7 @@ func TestWatcherWatch(t *testing.T) {
         }
     }
 }`
-	updateMsg, err := message.NewMessage(givenKey, []byte(givenUpdatedA6Str), 1, message.EventAdd)
+	updateMsg, err := message.NewMessage(givenKey, []byte(givenUpdatedA6Str), 1, message.EventAdd, message.A6RoutesConf)
 	assert.Nil(t, err, caseDesc)
 	watchCh <- []*message.Message{updateMsg}
 
@@ -165,11 +165,11 @@ func TestWatcherWatch(t *testing.T) {
         "discovery_type": "mock_zk"
     }
 }`
-	replaceMsg, err := message.NewMessage(givenKey, []byte(givenReplacedA6Str), 1, message.EventAdd)
+	replaceMsg, err := message.NewMessage(givenKey, []byte(givenReplacedA6Str), 1, message.EventAdd, message.A6RoutesConf)
 	assert.Nil(t, err, caseDesc)
 	watchCh <- []*message.Message{replaceMsg}
 
-	deleteMsg, err := message.NewMessage(givenKey, nil, 1, message.EventDelete)
+	deleteMsg, err := message.NewMessage(givenKey, nil, 1, message.EventDelete, message.A6RoutesConf)
 	assert.Nil(t, err, caseDesc)
 	watchCh <- []*message.Message{deleteMsg}
 

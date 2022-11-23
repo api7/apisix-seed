@@ -112,7 +112,7 @@ func (s *EtcdV3) List(ctx context.Context, prefix string) ([]*message.Message, e
 
 	msgs := make([]*message.Message, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		msg, err := message.NewMessage(string(kv.Key), kv.Value, kv.Version, message.EventAdd)
+		msg, err := message.NewMessage(string(kv.Key), kv.Value, kv.Version, message.EventAdd, message.ToA6Type(prefix))
 		if err != nil {
 			log.Errorf("etcd list prefix[%s] format failed: %s", prefix, err)
 			continue
@@ -222,7 +222,7 @@ func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Mes
 				}
 
 				log.Infof("watch changed, key: %s, version: %d", key, ev.Kv.Version)
-				msg, err := message.NewMessage(key, ev.Kv.Value, ev.Kv.Version, typ)
+				msg, err := message.NewMessage(key, ev.Kv.Value, ev.Kv.Version, typ, message.ToA6Type(prefix))
 				if err != nil {
 					log.Warnf("etcd watch key[%s]'s %s event failed: %s", key, typ, err)
 					continue

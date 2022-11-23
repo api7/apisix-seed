@@ -9,7 +9,8 @@ import (
 )
 
 var _ = BeforeSuite(func() {
-	Expect(tools.CleanRoutes()).To(BeNil())
+	Expect(tools.CleanResources("routes")).To(BeNil())
+	Expect(tools.CleanResources("upstreams")).To(BeNil())
 	Expect(tools.NewIRegCenter("nacos").Clean()).To(BeNil())
 	Expect(tools.NewIRegCenter("zookeeper").Clean()).To(BeNil())
 })

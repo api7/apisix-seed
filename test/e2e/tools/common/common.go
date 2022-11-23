@@ -1,8 +1,12 @@
 package common
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -32,7 +36,7 @@ func (n *Node) String() string {
 		" ip=" + n.Host + " port=" + n.Port
 }
 
-func Request(uri string) (int, string, error) {
+func RequestDP(uri string) (int, string, error) {
 	url := APISIX_DP_HOST + uri
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -51,4 +55,28 @@ func Request(uri string) (int, string, error) {
 		return resp.StatusCode, "", err
 	}
 	return resp.StatusCode, string(body), nil
+}
+
+func RequestCP(uri, method, data string) (*http.Response, error) {
+	url := APISIX_CP_HOST + uri
+	var body io.Reader
+	if data != "" {
+		body = strings.NewReader(data)
+	}
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("X-API-KEY", APISIX_TOKEN)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 201 && resp.StatusCode != 200 {
+		return nil, errors.New(fmt.Sprintf("%s route failed: %s", method, uri))
+	}
+	fmt.Println(method + " route successful: " + uri)
+	return resp, nil
 }
