@@ -1,13 +1,11 @@
 package discoverer
 
 import (
-	"errors"
 	"fmt"
 	"hash"
 	"hash/crc32"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/api7/apisix-seed/internal/core/message"
@@ -49,6 +47,10 @@ type NacosDiscoverer struct {
 	ServerConfigs map[string][]constant.ServerConfig
 	// nacos naming clients, grouping by authentication information
 	namingClients map[string][]naming_client.INamingClient
+	// nacos username
+	serverUser string
+	// nacos password
+	serverPassword string
 
 	paramMutex sync.Mutex
 	params     map[string]*vo.SubscribeParam
@@ -76,7 +78,7 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 			port, _ = strconv.Atoi(portStr)
 		}
 
-		auth := u.User.String()
+		auth := config.User
 		serverConfigs[auth] = append(serverConfigs[auth], constant.ServerConfig{
 			IpAddr:      u.Hostname(),
 			Port:        uint64(port),
@@ -88,16 +90,18 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 	timeout := config.Timeout
 	discoverer := NacosDiscoverer{
 		// compatible with past timeout configurations
-		timeout:       uint64(timeout.Connect + timeout.Read + timeout.Send),
-		weight:        config.Weight,
-		ServerConfigs: serverConfigs,
-		namingClients: make(map[string][]naming_client.INamingClient),
-		paramMutex:    sync.Mutex{},
-		params:        make(map[string]*vo.SubscribeParam),
-		cacheMutex:    sync.Mutex{},
-		cache:         make(map[string]*NacosService),
-		crc:           crc32.NewIEEE(),
-		msgCh:         make(chan *message.Message, 10),
+		timeout:        uint64(timeout.Connect + timeout.Read + timeout.Send),
+		weight:         config.Weight,
+		ServerConfigs:  serverConfigs,
+		serverUser:     config.User,
+		serverPassword: config.Password,
+		namingClients:  make(map[string][]naming_client.INamingClient),
+		paramMutex:     sync.Mutex{},
+		params:         make(map[string]*vo.SubscribeParam),
+		cacheMutex:     sync.Mutex{},
+		cache:          make(map[string]*NacosService),
+		crc:            crc32.NewIEEE(),
+		msgCh:          make(chan *message.Message, 10),
 	}
 	return &discoverer, nil
 }
@@ -309,19 +313,9 @@ func (d *NacosDiscoverer) unsubscribe(service *NacosService) {
 
 func (d *NacosDiscoverer) newClient(namespace string) error {
 	newClients := make([]naming_client.INamingClient, 0, len(d.ServerConfigs))
-	for auth, serverConfigs := range d.ServerConfigs {
-		var username, password string
-		if len(auth) != 0 {
-			strs := strings.Split(auth, ":")
-			if l := len(strs); l == 1 {
-				username = strs[0]
-			} else if l == 2 {
-				username, password = strs[0], strs[1]
-			} else {
-				log.Error("incorrect auth information")
-				return errors.New("incorrect auth information")
-			}
-		}
+	for _, serverConfigs := range d.ServerConfigs {
+		username := d.serverUser
+		password := d.serverPassword
 
 		clientConfig := constant.ClientConfig{
 			TimeoutMs:            d.timeout,

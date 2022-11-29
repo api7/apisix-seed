@@ -26,7 +26,9 @@ prefix: ~
 
 var naYamlConfigWithPasswd = `
 host:
-  - "https://username:password@console.nacos.io:8858"
+  - "https://console.nacos.io:8858"
+user:       "username"
+password:   "password"
 `
 
 func getNaConfig(str string) (*conf.Nacos, error) {
@@ -55,7 +57,7 @@ func TestServerConfig(t *testing.T) {
 	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 
 	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
-		assert.True(t, auth == "username:password", "Test auth")
+		assert.True(t, auth == "username", "Test auth")
 		assert.Len(t, serverConfigs, 1)
 
 		config := serverConfigs[0]

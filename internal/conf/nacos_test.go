@@ -45,7 +45,7 @@ func TestNacosValidator(t *testing.T) {
 			caseDesc: "Test pattern match",
 			givePath: "pattern.yaml",
 			wantValidateErr: []error{
-				fmt.Errorf("Host.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:\\@]+$'\nPrefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'"),
+				fmt.Errorf("Host.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:]+$'\nPrefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'"),
 				fmt.Errorf("Prefix: Does not match pattern '^[\\/a-zA-Z0-9-_.]*$'\nHost.0: Does not match pattern '^http(s)?:\\/\\/[a-zA-Z0-9-_.:\\@]+$'"),
 			},
 		},
@@ -55,6 +55,20 @@ func TestNacosValidator(t *testing.T) {
 			wantValidateErr: []error{
 				fmt.Errorf("Weight: Must be greater than or equal to 1\nTimeout.Connect: Must be greater than or equal to 1"),
 				fmt.Errorf("Timeout.Connect: Must be greater than or equal to 1\nWeight: Must be greater than or equal to 1"),
+			},
+		},
+		{
+			caseDesc: "Test User",
+			givePath: "user.yaml",
+			wantValidateErr: []error{
+				fmt.Errorf("User: Does not match pattern '^[a-zA-Z0-9-_.]*$'"),
+			},
+		},
+		{
+			caseDesc: "Test Password",
+			givePath: "password.yaml",
+			wantValidateErr: []error{
+				fmt.Errorf("Password: Does not match pattern '^[a-zA-Z0-9-_.]*$'"),
 			},
 		},
 	}
