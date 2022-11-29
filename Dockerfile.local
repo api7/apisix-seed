@@ -2,12 +2,9 @@ FROM golang:1.17
 
 COPY ./ ./apisix-seed
 
-#RUN if [ "$ENABLE_PROXY" = "true" ] ; then go env -w GOPROXY=https://goproxy.cn,direct ; fi \
-RUN go env -w GO111MODULE=on
-RUN go env -w GOPROXY=https://goproxy.io,direct
-RUN cd apisix-seed \
-    && make build \
-    &&  make install
+RUN if [ "$ENABLE_PROXY" = "true" ] ; then go env -w GOPROXY=https://goproxy.io,direct ; fi \
+    && go env -w GO111MODULE=on \
+    && cd apisix-seed \
 
 ENV PATH=$PATH:/usr/local/apisix-seed
 

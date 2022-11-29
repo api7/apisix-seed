@@ -3,7 +3,6 @@ package conf
 import (
 	"github.com/api7/apisix-seed/internal/utils"
 	"gopkg.in/yaml.v3"
-	"log"
 )
 
 func init() {
@@ -108,7 +107,6 @@ func nacosBuilder(content []byte) (interface{}, error) {
 	}
 
 	if err = validator.Validate(nacos); err != nil {
-		log.Printf("================= levy err: %s", err.Error())
 		return nil, err
 	}
 	return &nacos, nil
