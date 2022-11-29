@@ -5,6 +5,8 @@ COPY ./ ./apisix-seed
 RUN if [ "$ENABLE_PROXY" = "true" ] ; then go env -w GOPROXY=https://goproxy.io,direct ; fi \
     && go env -w GO111MODULE=on \
     && cd apisix-seed \
+    && make build \
+    &&  make install
 
 ENV PATH=$PATH:/usr/local/apisix-seed
 
