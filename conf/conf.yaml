@@ -17,6 +17,8 @@ discovery:                       # service discovery center
     host:                        # it's possible to define multiple nacos hosts addresses of the same nacos cluster.
       - "http://127.0.0.1:8848"
     prefix: /nacos
+    user:      "admin"             # username for nacos
+    password:  "5tHkHhYkjr6cQY"    # password for nacos
     weight: 100                  # default weight for node
     timeout:
       connect: 2000              # default 2000ms

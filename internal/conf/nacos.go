@@ -18,7 +18,7 @@ const schema = `
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^http(s)?:\\/\\/[a-zA-Z0-9-_.:\\@]+$",
+        "pattern": "^http(s)?:\\/\\/[a-zA-Z0-9-_.:]+$",
         "minLength": 2,
         "maxLength": 100
       }
@@ -32,6 +32,16 @@ const schema = `
       "type": "integer",
       "minimum": 1,
       "default": 100
+    },
+    "User": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9-_.]*$",
+      "maxLength": 100
+    },
+    "Password": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9-_.]*$",
+      "maxLength": 100
     },
     "Timeout": {
       "type": "object",
@@ -67,10 +77,12 @@ type timeout struct {
 }
 
 type Nacos struct {
-	Host    []string
-	Prefix  string
-	Weight  int
-	Timeout timeout
+	Host     []string
+	Prefix   string
+	User     string
+	Password string
+	Weight   int
+	Timeout  timeout
 }
 
 func nacosBuilder(content []byte) (interface{}, error) {
