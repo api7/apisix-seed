@@ -34,14 +34,10 @@ const schema = `
       "default": 100
     },
     "User": {
-      "type": "string",
-      "pattern": "^[a-zA-Z0-9-_.]*$",
-      "maxLength": 100
+      "type": "string"
     },
     "Password": {
-      "type": "string",
-      "pattern": "^[a-zA-Z0-9-_.]*$",
-      "maxLength": 100
+      "type": "string"
     },
     "Timeout": {
       "type": "object",

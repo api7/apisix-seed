@@ -57,20 +57,6 @@ func TestNacosValidator(t *testing.T) {
 				fmt.Errorf("Timeout.Connect: Must be greater than or equal to 1\nWeight: Must be greater than or equal to 1"),
 			},
 		},
-		{
-			caseDesc: "Test User",
-			givePath: "user.yaml",
-			wantValidateErr: []error{
-				fmt.Errorf("User: Does not match pattern '^[a-zA-Z0-9-_.]*$'"),
-			},
-		},
-		{
-			caseDesc: "Test Password",
-			givePath: "password.yaml",
-			wantValidateErr: []error{
-				fmt.Errorf("Password: Does not match pattern '^[a-zA-Z0-9-_.]*$'"),
-			},
-		},
 	}
 
 	for _, tc := range tests {

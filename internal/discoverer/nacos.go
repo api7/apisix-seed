@@ -313,9 +313,9 @@ func (d *NacosDiscoverer) unsubscribe(service *NacosService) {
 
 func (d *NacosDiscoverer) newClient(namespace string) error {
 	newClients := make([]naming_client.INamingClient, 0, len(d.ServerConfigs))
+	username := d.serverUser
+	password := d.serverPassword
 	for _, serverConfigs := range d.ServerConfigs {
-		username := d.serverUser
-		password := d.serverPassword
 
 		clientConfig := constant.ClientConfig{
 			TimeoutMs:            d.timeout,
