@@ -43,9 +43,14 @@ func main() {
 		Prefix: conf.ETCDConfig.Prefix,
 	}
 	rewriter.Init()
+	defer rewriter.Close()
 
 	watcher := components.Watcher{}
-	watcher.Init()
+	err = watcher.Init()
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
 	watcher.Watch()
 
 	quit := make(chan os.Signal, 1)

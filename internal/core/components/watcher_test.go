@@ -1,6 +1,7 @@
 package components
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -65,7 +66,31 @@ func TestWatcherInit(t *testing.T) {
 	}).Return(nil)
 
 	watcher := Watcher{}
-	watcher.Init()
+	assert.Nil(t, watcher.Init())
+}
+
+func TestWatcher_Init_error(t *testing.T) {
+	// inject mock function
+	mStg := &storer.MockInterface{}
+	mStg.On("List", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	}).Return([]*message.Message{}, errors.New("list prefix is not found"))
+
+	storer.ClrearStores()
+	// init store
+	optRoute := storer.GenericStoreOption{
+		BasePath: "/apisix/routes",
+		Prefix:   "/apisix",
+	}
+	optService := storer.GenericStoreOption{
+		BasePath: "/apisix/services",
+		Prefix:   "/apisix",
+	}
+	assert.Nil(t, storer.InitStore("mock1", optRoute, mStg))
+	assert.Nil(t, storer.InitStore("mock2", optService, mStg))
+
+	watcher := Watcher{}
+	err := watcher.Init()
+	assert.EqualError(t, err, "storer List all error")
 }
 
 func TestWatcherWatch(t *testing.T) {
