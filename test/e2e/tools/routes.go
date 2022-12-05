@@ -8,12 +8,14 @@ import (
 )
 
 type Upstream struct {
-	ID            string
-	LBType        string `json:"type"`
-	ServiceName   string `json:"service_name,omitempty"`
-	DiscoveryType string `json:"discovery_type,omitempty"`
-	DiscoveryArgs map[string]interface{}
-	Nodes         map[string]int `json:"nodes,omitempty"`
+	ID               string
+	LBType           string `json:"type"`
+	ServiceName      string `json:"service_name,omitempty"`
+	DupServiceName   string `json:"_service_name,omitempty"`
+	DiscoveryType    string `json:"discovery_type,omitempty"`
+	DupDiscoveryType string `json:"_discovery_type,omitempty"`
+	DiscoveryArgs    map[string]interface{}
+	Nodes            map[string]int `json:"nodes,omitempty"`
 }
 
 func (up *Upstream) Marshal() string {
@@ -21,8 +23,8 @@ func (up *Upstream) Marshal() string {
 	return string(str)
 }
 
-func (up *Upstream) Do() error {
-	_, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, "PUT", up.Marshal())
+func (up *Upstream) Do(method string) error {
+	_, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, method, up.Marshal())
 	return err
 }
 
@@ -140,7 +142,20 @@ func CreateRoutes(routes []*Route) error {
 
 func CreateUpstreams(upstreams []*Upstream) error {
 	for _, up := range upstreams {
-		err := up.Do()
+		err := up.Do("PUT")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func PatchUpstreams(upstreams []*Upstream) error {
+	for _, up := range upstreams {
+		up.DupServiceName, up.DupDiscoveryType = up.ServiceName, up.DiscoveryType
+		up.ServiceName, up.DiscoveryType = "", ""
+
+		err := up.Do("PATCH")
 		if err != nil {
 			return err
 		}

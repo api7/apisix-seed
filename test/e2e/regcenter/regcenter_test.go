@@ -102,7 +102,7 @@ var _ = Describe("Normal test", Ordered, func() {
 		)
 	})
 
-	Context("", func() {
+	Context("switch discover mode and nodes mode", func() {
 		type normalCase struct {
 			URI           string
 			Route         *tools.Route
@@ -113,43 +113,111 @@ var _ = Describe("Normal test", Ordered, func() {
 			Reg           tools.IRegCenter
 		}
 
-		DescribeTable("discover mode to nodes to discover", Ordered,
+		discoverModeFirst := func(tc normalCase) {
+			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
+			Expect(tools.CreateRoutes([]*tools.Route{tc.Route})).To(BeNil())
+			//create sim server
+			Expect(tools.CreateSimServer([]*tools.SimServer{tc.DisServer})).To(BeNil())
+			// upstream server online
+			Expect(tc.DisServer.Register(tc.Reg)).To(BeNil())
+
+			time.Sleep(3 * time.Second)
+			status, body, err := common.RequestDP(tc.URI)
+			Expect(err).To(BeNil())
+			Expect(status).To(Equal(200))
+			Expect(body).To(Equal("response: 0.0.0.0:" + tc.DisServer.Node.Port))
+		}
+
+		nodesModeFirst := func(tc normalCase) {
+			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
+			Expect(tools.CreateRoutes([]*tools.Route{tc.Route})).To(BeNil())
+			//create sim server
+			Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
+
+			time.Sleep(3 * time.Second)
+			status, body, err := common.RequestDP(tc.URI)
+			Expect(err).To(BeNil())
+			Expect(status).To(Equal(200))
+			expectBody := ""
+			for k := range tc.NodesUpstream.Nodes {
+				// host is DOCKERGATEWAY, we should replace it to 0.0.0.0
+				port := strings.Split(k, ":")[1]
+				expectBody = "response: 0.0.0.0:" + port
+			}
+			Expect(body).To(Equal(expectBody))
+		}
+
+		changeNodes2Discover := func(tc normalCase, method string) {
+			if method == "PATCH" {
+				// use _service_name instead of service_name
+				Expect(tools.PatchUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
+			} else {
+				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
+			}
+
+			time.Sleep(3 * time.Second)
+			status, body, err := common.RequestDP(tc.URI)
+			Expect(err).To(BeNil())
+			Expect(status).To(Equal(200))
+			Expect(body).To(Equal("response: 0.0.0.0:" + tc.DisServer.Node.Port))
+		}
+
+		changeDiscover2Nodes := func(tc normalCase) {
+			Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
+			// Just use PUT method, for Patch method need delete "service_name" and "discover_type" attr
+			// it's related to apisix-seed
+			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
+			time.Sleep(3 * time.Second)
+			status, body, err := common.RequestDP(tc.URI)
+			Expect(err).To(BeNil())
+			Expect(status).To(Equal(200))
+			expectBody := ""
+			for k := range tc.NodesUpstream.Nodes {
+				// host is DOCKERGATEWAY, we should replace it to 0.0.0.0
+				port := strings.Split(k, ":")[1]
+				expectBody = "response: 0.0.0.0:" + port
+			}
+			Expect(body).To(Equal(expectBody))
+		}
+
+		DescribeTable("discover mode to nodes to discover: discover first", Ordered,
 			func(tc normalCase) {
-				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
-				Expect(tools.CreateRoutes([]*tools.Route{tc.Route})).To(BeNil())
-				//create sim server
-				Expect(tools.CreateSimServer([]*tools.SimServer{tc.DisServer})).To(BeNil())
-				// upstream server online
-				Expect(tc.DisServer.Register(tc.Reg)).To(BeNil())
+				discoverModeFirst(tc)
+				changeDiscover2Nodes(tc)
+				changeNodes2Discover(tc, "PUT")
+				changeDiscover2Nodes(tc)
+				changeNodes2Discover(tc, "PATCH")
 
-				time.Sleep(3 * time.Second)
-				status, body, err := common.RequestDP(tc.URI)
-				Expect(err).To(BeNil())
-				Expect(status).To(Equal(200))
-				Expect(body).To(Equal("response: 0.0.0.0:" + tc.DisServer.Node.Port))
+				tools.DestroySimServer([]*tools.SimServer{tc.DisServer})
+				tools.DestroySimServer([]*tools.SimServer{tc.NodesServer})
+			},
+			Entry("nacos", normalCase{
+				URI:           "/test5",
+				DisUpstream:   tools.NewUpstream("1", "APISIX-NACOS", "nacos"),
+				DisServer:     tools.NewSimServer("0.0.0.0", "9990", "APISIX-NACOS"),
+				NodesUpstream: tools.NewUpstreamWithNodes("1", "0.0.0.0", "9991"),
+				NodesServer:   tools.NewSimServer("0.0.0.0", "9991", ""),
+				Route:         tools.NewRouteWithUpstreamID("1", "/test5", "1"),
+				Reg:           tools.NewIRegCenter("nacos"),
+			}),
+			Entry("zookeeper", normalCase{
+				URI:           "/test6",
+				DisUpstream:   tools.NewUpstream("1", "APISIX-ZK", "zookeeper"),
+				DisServer:     tools.NewSimServer("0.0.0.0", "9990", "APISIX-ZK"),
+				NodesUpstream: tools.NewUpstreamWithNodes("1", "0.0.0.0", "9991"),
+				NodesServer:   tools.NewSimServer("0.0.0.0", "9991", ""),
+				Route:         tools.NewRouteWithUpstreamID("1", "/test6", "1"),
+				Reg:           tools.NewIRegCenter("zookeeper"),
+			}),
+		)
 
-				// change discover to nodes
-				Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
-				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
-				time.Sleep(3 * time.Second)
-				status, body, err = common.RequestDP(tc.URI)
-				Expect(err).To(BeNil())
-				Expect(status).To(Equal(200))
-				expectBody := ""
-				for k := range tc.NodesUpstream.Nodes {
-					// host is DOCKERGATEWAY, we should replace it to 0.0.0.0
-					port := strings.Split(k, ":")[1]
-					expectBody = "response: 0.0.0.0:" + port
-				}
-				Expect(body).To(Equal(expectBody))
-
-				// change nodes to discover again
-				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
-				time.Sleep(3 * time.Second)
-				status, body, err = common.RequestDP(tc.URI)
-				Expect(err).To(BeNil())
-				Expect(status).To(Equal(200))
-				Expect(body).To(Equal("response: 0.0.0.0:" + tc.DisServer.Node.Port))
+		DescribeTable("discover mode to nodes to discover: nodes first", Ordered,
+			func(tc normalCase) {
+				nodesModeFirst(tc)
+				changeNodes2Discover(tc, "PUT")
+				changeDiscover2Nodes(tc)
+				changeNodes2Discover(tc, "PATCH")
+				changeDiscover2Nodes(tc)
 
 				tools.DestroySimServer([]*tools.SimServer{tc.DisServer})
 				tools.DestroySimServer([]*tools.SimServer{tc.NodesServer})
