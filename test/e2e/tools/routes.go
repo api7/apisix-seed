@@ -40,7 +40,7 @@ func NewUpstreamWithNodes(id string, host, port string) *Upstream {
 	return &Upstream{
 		ID: id,
 		Nodes: map[string]int{
-			host + ":" + port: 1,
+			common.DOCKER_GATEWAY + ":" + port: 1,
 		},
 	}
 }
