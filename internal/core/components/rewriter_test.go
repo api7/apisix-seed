@@ -27,16 +27,16 @@ func TestRewriter(t *testing.T) {
 	mDiscover.On("Watch").Run(func(args mock.Arguments) {}).Return(watchCh)
 
 	givenA6Str := `{
-    "uri": "/nacosWithNamespaceId/*",
-    "upstream": {
-        "service_name": "APISIX-NACOS",
-        "type": "roundrobin",
-        "discovery_type": "nacos",
-        "discovery_args": {
-          "group_name": "DEFAULT_GROUP"
-        }
-    }
-}`
+	    "uri": "/nacosWithNamespaceId/*",
+	    "upstream": {
+	        "service_name": "APISIX-NACOS",
+	        "type": "roundrobin",
+	        "discovery_type": "nacos",
+	        "discovery_args": {
+	          "group_name": "DEFAULT_GROUP"
+	        }
+	    }
+	}`
 	givenNodes := &message.Node{
 		Host:   "1.1.1.1",
 		Port:   8080,

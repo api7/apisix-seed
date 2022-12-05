@@ -91,6 +91,10 @@ func embedElm(v reflect.Value, all map[string]interface{}) {
 			continue
 		}
 
+		if fieldName == "hasNodesAttr" {
+			continue
+		}
+
 		val := v.FieldByName(fieldName)
 		// ignore members without set values
 		if val.IsZero() {
