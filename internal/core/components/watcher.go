@@ -26,16 +26,17 @@ func (w *Watcher) Init() error {
 	// the number of semaphore is referenced to https://github.com/golang/go/blob/go1.17.1/src/cmd/compile/internal/noder/noder.go#L38
 	w.sem = make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
-	loaded := false
+	loadSuccess := true
 	// List the initial information
 	for _, s := range storer.GetStores() {
 		//eg: query from etcd by prefix /apisix/routes/
 		msgs, err := s.List(message.ServiceFilter)
 		if err != nil {
 			log.Errorf("storer list error: %v", err)
-			continue
+			loadSuccess = false
+			break
 		}
-		loaded = true
+
 		if len(msgs) == 0 {
 			continue
 		}
@@ -48,8 +49,8 @@ func (w *Watcher) Init() error {
 		wg.Wait()
 	}
 
-	if !loaded {
-		return errors.New("storer List all error")
+	if !loadSuccess {
+		return errors.New("failed to load all etcd resources")
 	}
 	return nil
 }
