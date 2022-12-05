@@ -3,6 +3,7 @@ package regcenter_test
 import (
 	"e2e/tools"
 	"e2e/tools/common"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -136,7 +137,9 @@ var _ = Describe("Normal test", Ordered, func() {
 				Expect(status).To(Equal(200))
 				expectBody := ""
 				for k := range tc.NodesUpstream.Nodes {
-					expectBody = k
+					// host is DOCKERGATEWAY, we should replace it to 0.0.0.0
+					port := strings.Split(k, ":")[1]
+					expectBody = "response: 0.0.0.0:" + port
 				}
 				Expect(body).To(Equal("response: " + expectBody))
 
