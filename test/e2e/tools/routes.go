@@ -152,10 +152,18 @@ func CreateUpstreams(upstreams []*Upstream) error {
 
 func PatchUpstreams(upstreams []*Upstream) error {
 	for _, up := range upstreams {
+		dupUp := &Upstream{
+			ID:               up.ID,
+			LBType:           up.LBType,
+			DupDiscoveryType: up.DiscoveryType,
+			DupServiceName:   up.ServiceName,
+			DiscoveryArgs:    up.DiscoveryArgs,
+			Nodes:            up.Nodes,
+		}
 		up.DupServiceName, up.DupDiscoveryType = up.ServiceName, up.DiscoveryType
 		up.ServiceName, up.DiscoveryType = "", ""
 
-		err := up.Do("PATCH")
+		err := dupUp.Do("PATCH")
 		if err != nil {
 			return err
 		}
