@@ -38,6 +38,7 @@ func TestMessage(t *testing.T) {
 	assert.Equal(t, "nacos", msg.DiscoveryType(), caseDesc)
 	assert.Equal(t, "APISIX-NACOS", msg.ServiceName(), caseDesc)
 	assert.Equal(t, "DEFAULT_GROUP", msg.DiscoveryArgs()["group_name"], caseDesc)
+	assert.Equal(t, false, msg.HasNodesAttr(), caseDesc)
 
 	msg.InjectNodes([]*Node{
 		{Host: "1.1.31.1", Port: 80, Weight: 1},

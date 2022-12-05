@@ -107,7 +107,8 @@ var _ = Describe("Normal test", Ordered, func() {
 			Route         *tools.Route
 			DisUpstream   *tools.Upstream
 			NodesUpstream *tools.Upstream
-			Server        *tools.SimServer
+			DisServer     *tools.SimServer
+			NodesServer   *tools.SimServer
 			Reg           tools.IRegCenter
 		}
 
@@ -116,17 +117,18 @@ var _ = Describe("Normal test", Ordered, func() {
 				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
 				Expect(tools.CreateRoutes([]*tools.Route{tc.Route})).To(BeNil())
 				//create sim server
-				Expect(tools.CreateSimServer([]*tools.SimServer{tc.Server})).To(BeNil())
+				Expect(tools.CreateSimServer([]*tools.SimServer{tc.DisServer})).To(BeNil())
 				// upstream server online
-				Expect(tc.Server.Register(tc.Reg)).To(BeNil())
+				Expect(tc.DisServer.Register(tc.Reg)).To(BeNil())
 
 				time.Sleep(3 * time.Second)
 				status, body, err := common.RequestDP(tc.URI)
 				Expect(err).To(BeNil())
 				Expect(status).To(Equal(200))
-				Expect(body).To(Equal("response: 0.0.0.0:" + tc.Server.Node.Port))
+				Expect(body).To(Equal("response: 0.0.0.0:" + tc.DisServer.Node.Port))
 
 				// change discover to nodes
+				Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
 				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
 				time.Sleep(3 * time.Second)
 				status, body, err = common.RequestDP(tc.URI)
@@ -144,15 +146,28 @@ var _ = Describe("Normal test", Ordered, func() {
 				status, body, err = common.RequestDP(tc.URI)
 				Expect(err).To(BeNil())
 				Expect(status).To(Equal(200))
-				Expect(body).To(Equal("response: 0.0.0.0:" + tc.Server.Node.Port))
+				Expect(body).To(Equal("response: 0.0.0.0:" + tc.DisServer.Node.Port))
+
+				tools.DestroySimServer([]*tools.SimServer{tc.DisServer})
+				tools.DestroySimServer([]*tools.SimServer{tc.NodesServer})
 			},
-			Entry("normal", normalCase{
+			Entry("nacos", normalCase{
 				URI:           "/test5",
 				DisUpstream:   tools.NewUpstream("1", "APISIX-NACOS", "nacos"),
+				DisServer:     tools.NewSimServer("0.0.0.0", "9990", "APISIX-NACOS"),
 				NodesUpstream: tools.NewUpstreamWithNodes("1", "0.0.0.0", "9991"),
+				NodesServer:   tools.NewSimServer("0.0.0.0", "9991", ""),
 				Route:         tools.NewRouteWithUpstreamID("1", "/test5", "1"),
-				Server:        tools.NewSimServer("0.0.0.0", "9990", "APISIX-NACOS"),
 				Reg:           tools.NewIRegCenter("nacos"),
+			}),
+			Entry("zookeeper", normalCase{
+				URI:           "/test6",
+				DisUpstream:   tools.NewUpstream("1", "APISIX-ZK", "zookeeper"),
+				DisServer:     tools.NewSimServer("0.0.0.0", "9990", "APISIX-ZK"),
+				NodesUpstream: tools.NewUpstreamWithNodes("1", "0.0.0.0", "9991"),
+				NodesServer:   tools.NewSimServer("0.0.0.0", "9991", ""),
+				Route:         tools.NewRouteWithUpstreamID("1", "/test6", "1"),
+				Reg:           tools.NewIRegCenter("zookeeper"),
 			}),
 		)
 	})
