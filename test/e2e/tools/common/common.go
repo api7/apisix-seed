@@ -80,5 +80,6 @@ func RequestCP(uri, method, data string) (*http.Response, error) {
 		return nil, errors.New(fmt.Sprintf("%s %s failed: %s", method, uri, string(body)))
 	}
 	fmt.Println(method + " " + uri + " successful")
+	fmt.Println("data: ", data)
 	return resp, nil
 }

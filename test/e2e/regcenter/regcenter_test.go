@@ -3,6 +3,7 @@ package regcenter_test
 import (
 	"e2e/tools"
 	"e2e/tools/common"
+	"fmt"
 	"strings"
 	"time"
 
@@ -150,6 +151,7 @@ var _ = Describe("Normal test", Ordered, func() {
 		}
 
 		changeNodes2Discover := func(tc normalCase, method string) {
+			fmt.Println("change nodes to discover mode")
 			if method == "PATCH" {
 				// use _service_name instead of service_name
 				Expect(tools.PatchUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
@@ -165,6 +167,7 @@ var _ = Describe("Normal test", Ordered, func() {
 		}
 
 		changeDiscover2Nodes := func(tc normalCase) {
+			fmt.Println("change discover to nodes mode")
 			// Just use PUT method, for Patch method need delete "service_name" and "discover_type" attr
 			// it's related to apisix-seed
 			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
