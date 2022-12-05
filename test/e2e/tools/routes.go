@@ -24,7 +24,10 @@ func (up *Upstream) Marshal() string {
 }
 
 func (up *Upstream) Do(method string) error {
-	_, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, method, up.Marshal())
+	resp, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, method, up.Marshal())
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("resp data: ", string(body))
 	return err
 }
 
