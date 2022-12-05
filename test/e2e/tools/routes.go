@@ -160,8 +160,6 @@ func PatchUpstreams(upstreams []*Upstream) error {
 			DiscoveryArgs:    up.DiscoveryArgs,
 			Nodes:            up.Nodes,
 		}
-		up.DupServiceName, up.DupDiscoveryType = up.ServiceName, up.DiscoveryType
-		up.ServiceName, up.DiscoveryType = "", ""
 
 		err := dupUp.Do("PATCH")
 		if err != nil {
