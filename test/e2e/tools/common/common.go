@@ -79,6 +79,6 @@ func RequestCP(uri, method, data string) (*http.Response, error) {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return nil, errors.New(fmt.Sprintf("%s %s failed: %s", method, uri, string(body)))
 	}
-	fmt.Println(method + " route successful: " + uri)
+	fmt.Println(method + " " + uri + " successful")
 	return resp, nil
 }

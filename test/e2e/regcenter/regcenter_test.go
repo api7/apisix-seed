@@ -118,6 +118,7 @@ var _ = Describe("Normal test", Ordered, func() {
 			Expect(tools.CreateRoutes([]*tools.Route{tc.Route})).To(BeNil())
 			//create sim server
 			Expect(tools.CreateSimServer([]*tools.SimServer{tc.DisServer})).To(BeNil())
+			Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
 			// upstream server online
 			Expect(tc.DisServer.Register(tc.Reg)).To(BeNil())
 
@@ -132,6 +133,7 @@ var _ = Describe("Normal test", Ordered, func() {
 			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
 			Expect(tools.CreateRoutes([]*tools.Route{tc.Route})).To(BeNil())
 			//create sim server
+			Expect(tools.CreateSimServer([]*tools.SimServer{tc.DisServer})).To(BeNil())
 			Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
 
 			time.Sleep(3 * time.Second)
@@ -163,7 +165,6 @@ var _ = Describe("Normal test", Ordered, func() {
 		}
 
 		changeDiscover2Nodes := func(tc normalCase) {
-			Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
 			// Just use PUT method, for Patch method need delete "service_name" and "discover_type" attr
 			// it's related to apisix-seed
 			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
