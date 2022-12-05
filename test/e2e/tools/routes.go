@@ -13,7 +13,7 @@ type Upstream struct {
 	ServiceName   string `json:"service_name,omitempty"`
 	DiscoveryType string `json:"discovery_type,omitempty"`
 	DiscoveryArgs map[string]interface{}
-	Nodes         map[string]string `json:"nodes"`
+	Nodes         map[string]string `json:"nodes,omitempty"`
 }
 
 func (up *Upstream) Marshal() string {
