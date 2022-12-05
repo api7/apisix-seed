@@ -44,6 +44,7 @@ type A6Conf interface {
 	Inject(nodes interface{})
 	Marshal() ([]byte, error)
 	GetUpstream() Upstream
+	HasNodesAttr() bool
 }
 
 func NewA6Conf(value []byte, a6Type int) (A6Conf, error) {
@@ -124,7 +125,8 @@ func embedElm(v reflect.Value, all map[string]interface{}) {
 
 type Upstreams struct {
 	Upstream
-	All map[string]interface{} `json:"-"`
+	hasNodesAttr bool
+	All          map[string]interface{} `json:"-"`
 }
 
 func (ups *Upstreams) GetAll() *map[string]interface{} {
@@ -145,6 +147,10 @@ func (ups *Upstreams) GetUpstream() Upstream {
 	return ups.Upstream
 }
 
+func (ups *Upstreams) HasNodesAttr() bool {
+	return ups.hasNodesAttr
+}
+
 func NewUpstreams(value []byte) (A6Conf, error) {
 	ups := &Upstreams{
 		All: make(map[string]interface{}),
@@ -153,12 +159,20 @@ func NewUpstreams(value []byte) (A6Conf, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	//We have to save the state of the nodes property after serializing the original data,
+	// because it may be changed in subsequent logic
+	if ups.Nodes != nil {
+		ups.hasNodesAttr = true
+	}
+
 	return ups, nil
 }
 
 type Routes struct {
-	Upstream Upstream               `json:"upstream"`
-	All      map[string]interface{} `json:"-"`
+	Upstream     Upstream               `json:"upstream"`
+	All          map[string]interface{} `json:"-"`
+	hasNodesAttr bool
 }
 
 func (routes *Routes) GetAll() *map[string]interface{} {
@@ -179,6 +193,10 @@ func (routes *Routes) GetUpstream() Upstream {
 	return routes.Upstream
 }
 
+func (routes *Routes) HasNodesAttr() bool {
+	return routes.hasNodesAttr
+}
+
 func NewRoutes(value []byte) (A6Conf, error) {
 	routes := &Routes{
 		All: make(map[string]interface{}),
@@ -187,12 +205,17 @@ func NewRoutes(value []byte) (A6Conf, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if routes.Upstream.Nodes != nil {
+		routes.hasNodesAttr = true
+	}
 	return routes, nil
 }
 
 type Services struct {
-	Upstream Upstream               `json:"upstream"`
-	All      map[string]interface{} `json:"-"`
+	Upstream     Upstream               `json:"upstream"`
+	All          map[string]interface{} `json:"-"`
+	hasNodesAttr bool
 }
 
 func (services *Services) GetAll() *map[string]interface{} {
@@ -213,6 +236,10 @@ func (services *Services) GetUpstream() Upstream {
 	return services.Upstream
 }
 
+func (services *Services) HasNodesAttr() bool {
+	return services.hasNodesAttr
+}
+
 func NewServices(value []byte) (A6Conf, error) {
 	services := &Services{
 		All: make(map[string]interface{}),
@@ -221,5 +248,10 @@ func NewServices(value []byte) (A6Conf, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if services.Upstream.Nodes != nil {
+		services.hasNodesAttr = true
+	}
+
 	return services, nil
 }

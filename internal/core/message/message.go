@@ -73,10 +73,7 @@ func (msg *Message) InjectNodes(nodes interface{}) {
 }
 
 func (msg *Message) HasNodesAttr() bool {
-	oriMsg := *msg.a6Conf.GetAll()
-	_, ok := oriMsg["nodes"]
-
-	return ok
+	return msg.a6Conf.HasNodesAttr()
 }
 
 func (msg *Message) Marshal() ([]byte, error) {

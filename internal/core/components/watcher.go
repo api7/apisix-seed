@@ -117,12 +117,11 @@ func (w *Watcher) update(msg *message.Message, s *storer.GenericStore) {
 		return
 	}
 
-	discover := discoverer.GetDiscoverer(msg.DiscoveryType())
 	obj, ok := s.Store(msg.Key, msg)
 	if !ok {
 		// Obtains a new entity with service information
 		log.Infof("Watcher obtains a new entity %s with service information", msg.Key)
-		_ = discover.Query(msg)
+		_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
 		return
 	}
 
@@ -130,7 +129,7 @@ func (w *Watcher) update(msg *message.Message, s *storer.GenericStore) {
 	if message.ServiceUpdate(oldMsg, msg) {
 		// Updates the service information of existing entity
 		log.Infof("Watcher updates the service information of existing entity %s", msg.Key)
-		_ = discover.Update(oldMsg, msg)
+		_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
 		return
 	}
 
@@ -138,14 +137,14 @@ func (w *Watcher) update(msg *message.Message, s *storer.GenericStore) {
 		// Replaces the service information of existing entity
 		log.Infof("Watcher replaces the service information of existing entity %s", msg.Key)
 
-		_ = discover.Delete(oldMsg)
-		_ = discover.Query(msg)
+		_ = discoverer.GetDiscoverer(oldMsg.DiscoveryType()).Delete(oldMsg)
+		_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
 
 		return
 	}
 
 	log.Infof("Watcher update version only, key: %s, version: %d", msg.Key, msg.Version)
-	_ = discover.Update(oldMsg, msg)
+	_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
 }
 
 func (w *Watcher) delete(msg *message.Message, s *storer.GenericStore) {
