@@ -17,7 +17,7 @@ func GetLogger() *zap.SugaredLogger {
 	// standard output
 	writeSyncer := zapcore.Lock(os.Stderr)
 	encoder := getEncoder()
-	logLevel := zapcore.InfoLevel
+	logLevel := zapcore.ErrorLevel
 	core := zapcore.NewCore(encoder, writeSyncer, logLevel)
 
 	zapLogger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(2))

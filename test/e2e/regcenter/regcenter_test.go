@@ -171,7 +171,7 @@ var _ = Describe("Normal test", Ordered, func() {
 		changeDiscover2Nodes := func(tc normalCase) {
 			fmt.Println("change discover to nodes mode")
 			// Just use PUT method, for Patch method need delete "service_name" and "discover_type" attr
-			// it's related to apisix-seed
+			// it's not related to apisix-seed
 			Expect(tools.CreateUpstreams([]*tools.Upstream{tc.NodesUpstream})).To(BeNil())
 			time.Sleep(3 * time.Second)
 			status, body, err := common.RequestDP(tc.URI)
