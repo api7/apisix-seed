@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type SimServer struct {
@@ -70,7 +71,7 @@ func CreateSimServer(servers []*SimServer) error {
 	for _, s := range servers {
 		s.Run()
 	}
-
+	time.Sleep(3 * time.Second)
 	for _, s := range servers {
 		if !s.Running() {
 			return errors.New(fmt.Sprintf("APISIX Test Server start failed: %s", s.IPPort()))

@@ -223,21 +223,21 @@ var _ = Describe("Normal test", Ordered, func() {
 				tools.DestroySimServer([]*tools.SimServer{tc.NodesServer})
 			},
 			Entry("nacos", normalCase{
-				URI:           "/test5",
+				URI:           "/test7",
 				DisUpstream:   tools.NewUpstream("1", "APISIX-NACOS", "nacos"),
 				DisServer:     tools.NewSimServer("0.0.0.0", "9990", "APISIX-NACOS"),
 				NodesUpstream: tools.NewUpstreamWithNodes("1", "0.0.0.0", "9991"),
 				NodesServer:   tools.NewSimServer("0.0.0.0", "9991", ""),
-				Route:         tools.NewRouteWithUpstreamID("1", "/test5", "1"),
+				Route:         tools.NewRouteWithUpstreamID("1", "/test7", "1"),
 				Reg:           tools.NewIRegCenter("nacos"),
 			}),
 			Entry("zookeeper", normalCase{
-				URI:           "/test6",
+				URI:           "/test8",
 				DisUpstream:   tools.NewUpstream("1", "APISIX-ZK", "zookeeper"),
 				DisServer:     tools.NewSimServer("0.0.0.0", "9990", "APISIX-ZK"),
 				NodesUpstream: tools.NewUpstreamWithNodes("1", "0.0.0.0", "9991"),
 				NodesServer:   tools.NewSimServer("0.0.0.0", "9991", ""),
-				Route:         tools.NewRouteWithUpstreamID("1", "/test6", "1"),
+				Route:         tools.NewRouteWithUpstreamID("1", "/test8", "1"),
 				Reg:           tools.NewIRegCenter("zookeeper"),
 			}),
 		)
