@@ -13,7 +13,7 @@ type Upstream struct {
 	ServiceName   string `json:"service_name,omitempty"`
 	DiscoveryType string `json:"discovery_type,omitempty"`
 	DiscoveryArgs map[string]interface{}
-	Nodes         map[string]string `json:"nodes,omitempty"`
+	Nodes         map[string]int `json:"nodes,omitempty"`
 }
 
 func (up *Upstream) Marshal() string {
@@ -39,8 +39,8 @@ func NewUpstream(id, serviceName, regType string) *Upstream {
 func NewUpstreamWithNodes(id string, host, port string) *Upstream {
 	return &Upstream{
 		ID: id,
-		Nodes: map[string]string{
-			host + ":" + port: "1",
+		Nodes: map[string]int{
+			host + ":" + port: 1,
 		},
 	}
 }
