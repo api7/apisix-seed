@@ -28,8 +28,8 @@ func (zookeeper *Zookeeper) Online(node *common.Node) error {
 	nodeStr := `[{"host":"` + common.DOCKER_GATEWAY + `","port":` + node.Port + `}]`
 	// zk does not allow duplicate registration
 	path := zookeeper.prefix + "/" + node.ServiceName
-	_, stat, err := zookeeper.conn.Exists(path)
-	if stat != nil {
+	ret, _, err := zookeeper.conn.Get(path)
+	if ret != nil {
 		return nil
 	}
 	_, err = zookeeper.conn.Create(path, []byte(nodeStr), 0, zk.WorldACL(zk.PermAll))
