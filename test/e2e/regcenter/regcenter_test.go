@@ -141,7 +141,7 @@ var _ = Describe("Normal test", Ordered, func() {
 					port := strings.Split(k, ":")[1]
 					expectBody = "response: 0.0.0.0:" + port
 				}
-				Expect(body).To(Equal("response: " + expectBody))
+				Expect(body).To(Equal(expectBody))
 
 				// change nodes to discover again
 				Expect(tools.CreateUpstreams([]*tools.Upstream{tc.DisUpstream})).To(BeNil())
