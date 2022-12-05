@@ -32,5 +32,4 @@ jobs:
       working-directory: ./test/e2e
       run: |
         ginkgo -r
-        sudo docker logs ci_apisix_1
 

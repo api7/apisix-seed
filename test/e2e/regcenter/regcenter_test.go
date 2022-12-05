@@ -136,6 +136,8 @@ var _ = Describe("Normal test", Ordered, func() {
 			//create sim server
 			Expect(tools.CreateSimServer([]*tools.SimServer{tc.DisServer})).To(BeNil())
 			Expect(tools.CreateSimServer([]*tools.SimServer{tc.NodesServer})).To(BeNil())
+			// upstream server online
+			Expect(tc.DisServer.Register(tc.Reg)).To(BeNil())
 
 			time.Sleep(3 * time.Second)
 			status, body, err := common.RequestDP(tc.URI)
@@ -186,10 +188,10 @@ var _ = Describe("Normal test", Ordered, func() {
 
 		DescribeTable("discover mode to nodes to discover: discover first", Ordered,
 			func(tc normalCase) {
-				discoverModeFirst(tc)           //{"ID":"1","type":"roundrobin","service_name":"APISIX-NACOS","discovery_type":"nacos","DiscoveryArgs":{}}
-				changeDiscover2Nodes(tc)        //{"ID":"1","type":"","DiscoveryArgs":null,"nodes":{"172.50.238.1:9991":1}}
-				changeNodes2Discover(tc, "PUT") //{"ID":"1","type":"roundrobin","service_name":"APISIX-NACOS","discovery_type":"nacos","DiscoveryArgs":{}}
-				changeDiscover2Nodes(tc)        // {"ID":"1","type":"","DiscoveryArgs":null,"nodes":{"172.50.238.1:9991":1}}
+				discoverModeFirst(tc)
+				changeDiscover2Nodes(tc)
+				changeNodes2Discover(tc, "PUT")
+				changeDiscover2Nodes(tc)
 				changeNodes2Discover(tc, "PUT")
 
 				tools.DestroySimServer([]*tools.SimServer{tc.DisServer})
