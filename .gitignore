@@ -20,3 +20,4 @@
 
 coverage.txt
 conf/conf-*.yaml
+log/*.log

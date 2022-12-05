@@ -24,4 +24,9 @@ discovery:                       # service discovery center
       connect: 2000              # default 2000ms
       send: 2000                 # default 2000ms
       read: 5000                 # default 5000ms
-
+  zookeeper:
+    hosts:
+      - "127.0.0.1:2181"
+    prefix: /zookeeper
+    weight: 100                  # default weight for node
+    timeout: 10                  # default 10s

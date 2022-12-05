@@ -192,7 +192,7 @@ var _ = Describe("Normal test", Ordered, func() {
 				changeDiscover2Nodes(tc)
 				changeNodes2Discover(tc, "PUT")
 				changeDiscover2Nodes(tc)
-				changeNodes2Discover(tc, "PUT")
+				changeNodes2Discover(tc, "PATCH")
 
 				tools.DestroySimServer([]*tools.SimServer{tc.DisServer})
 				tools.DestroySimServer([]*tools.SimServer{tc.NodesServer})
