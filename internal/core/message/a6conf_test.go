@@ -151,6 +151,37 @@ func TestMarshal_Routes(t *testing.T) {
 	assert.JSONEq(t, wantA6Str, string(ss))
 }
 
+func TestHasNodesAttr_Routes(t *testing.T) {
+	tests := []struct {
+		name  string
+		a6Str string
+		want  bool
+	}{
+		{
+			name:  "without upstream",
+			a6Str: `{"plugins":{"fault-injection":{"abort":{"http_status":200,"body":"fine"}}},"uri":"/status"}`,
+			want:  false,
+		},
+		{
+			name:  "has upstream without nodes",
+			a6Str: `{"uri":"/hh","upstream":{"type":"roundrobin","discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			want:  false,
+		},
+		{
+			name:  "normal",
+			a6Str: `{"uri":"/hh","upstream":{"type":"roundrobin","nodes":[{"host":"192.168.1.1","port":80,"weight":1}]}}`,
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			routes, err := NewRoutes([]byte(tt.a6Str))
+			assert.Nil(t, err)
+			assert.Equalf(t, tt.want, routes.HasNodesAttr(), "HasNodesAttr()")
+		})
+	}
+}
+
 func TestNewA6Conf_Services(t *testing.T) {
 	testCases := []struct {
 		desc  string
@@ -290,6 +321,37 @@ func TestMarshal_Services(t *testing.T) {
 	assert.JSONEq(t, wantA6Str, string(ss))
 }
 
+func TestHasNodesAttr_Services(t *testing.T) {
+	tests := []struct {
+		name  string
+		a6Str string
+		want  bool
+	}{
+		{
+			name:  "without upstream",
+			a6Str: `{"plugins":{"limit-count":{"count":2,"time_window":60,"rejected_code":503,"key":"remote_addr"}}}`,
+			want:  false,
+		},
+		{
+			name:  "has upstream without nodes",
+			a6Str: `{"plugins":{"limit-count":{"count":2,"time_window":60,"rejected_code":503,"key":"remote_addr"}},"upstream":{"type":"roundrobin","discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			want:  false,
+		},
+		{
+			name:  "normal",
+			a6Str: `{"plugins":{"limit-count":{"count":2,"time_window":60,"rejected_code":503,"key":"remote_addr"}},"upstream":{"type":"roundrobin","nodes":{"127.0.0.1:1980":1}}}`,
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			services, err := NewServices([]byte(tt.a6Str))
+			assert.Nil(t, err)
+			assert.Equalf(t, tt.want, services.HasNodesAttr(), "HasNodesAttr()")
+		})
+	}
+}
+
 func TestNewA6Conf_Upstreams(t *testing.T) {
 	testCases := []struct {
 		desc  string
@@ -416,4 +478,30 @@ func TestMarshal_Upstreams(t *testing.T) {
 	assert.Nil(t, err, caseDesc)
 
 	assert.JSONEq(t, wantA6Str, string(ss))
+}
+
+func TestHasNodesAttr_Upstreams(t *testing.T) {
+	tests := []struct {
+		name  string
+		a6Str string
+		want  bool
+	}{
+		{
+			name:  "upstream without nodes",
+			a6Str: `{"type":"roundrobin","discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}`,
+			want:  false,
+		},
+		{
+			name:  "normal",
+			a6Str: `{"type":"roundrobin","nodes":{"127.0.0.1:1980":1}}`,
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ups, err := NewUpstreams([]byte(tt.a6Str))
+			assert.Nil(t, err)
+			assert.Equalf(t, tt.want, ups.HasNodesAttr(), "HasNodesAttr()")
+		})
+	}
 }

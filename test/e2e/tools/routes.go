@@ -8,11 +8,14 @@ import (
 )
 
 type Upstream struct {
-	ID            string
-	LBType        string `json:"type"`
-	ServiceName   string `json:"service_name"`
-	DiscoveryType string `json:"discovery_type"`
-	DiscoveryArgs map[string]interface{}
+	ID               string
+	LBType           string `json:"type"`
+	ServiceName      string `json:"service_name,omitempty"`
+	DupServiceName   string `json:"_service_name,omitempty"`
+	DiscoveryType    string `json:"discovery_type,omitempty"`
+	DupDiscoveryType string `json:"_discovery_type,omitempty"`
+	DiscoveryArgs    map[string]interface{}
+	Nodes            map[string]int `json:"nodes,omitempty"`
 }
 
 func (up *Upstream) Marshal() string {
@@ -20,8 +23,11 @@ func (up *Upstream) Marshal() string {
 	return string(str)
 }
 
-func (up *Upstream) Do() error {
-	_, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, "PUT", up.Marshal())
+func (up *Upstream) Do(method string) error {
+	resp, err := common.RequestCP("/apisix/admin/upstreams/"+up.ID, method, up.Marshal())
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("resp data: ", string(body))
 	return err
 }
 
@@ -32,6 +38,15 @@ func NewUpstream(id, serviceName, regType string) *Upstream {
 		ServiceName:   serviceName,
 		DiscoveryType: regType,
 		DiscoveryArgs: make(map[string]interface{}),
+	}
+}
+
+func NewUpstreamWithNodes(id string, host, port string) *Upstream {
+	return &Upstream{
+		ID: id,
+		Nodes: map[string]int{
+			common.DOCKER_GATEWAY + ":" + port: 1,
+		},
 	}
 }
 
@@ -130,7 +145,26 @@ func CreateRoutes(routes []*Route) error {
 
 func CreateUpstreams(upstreams []*Upstream) error {
 	for _, up := range upstreams {
-		err := up.Do()
+		err := up.Do("PUT")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func PatchUpstreams(upstreams []*Upstream) error {
+	for _, up := range upstreams {
+		dupUp := &Upstream{
+			ID:               up.ID,
+			LBType:           up.LBType,
+			DupDiscoveryType: up.DiscoveryType,
+			DupServiceName:   up.ServiceName,
+			DiscoveryArgs:    up.DiscoveryArgs,
+			Nodes:            up.Nodes,
+		}
+
+		err := dupUp.Do("PATCH")
 		if err != nil {
 			return err
 		}

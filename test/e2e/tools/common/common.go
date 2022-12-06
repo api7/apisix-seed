@@ -74,9 +74,12 @@ func RequestCP(uri, method, data string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if resp.StatusCode != 201 && resp.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("%s route failed: %s", method, uri))
+		defer resp.Body.Close()
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		return nil, errors.New(fmt.Sprintf("%s %s failed: %s", method, uri, string(respBody)))
 	}
-	fmt.Println(method + " route successful: " + uri)
+	fmt.Println(method + " " + uri + " successful")
 	return resp, nil
 }

@@ -102,37 +102,58 @@ func (w *Watcher) handleValue(msg *message.Message, wg *sync.WaitGroup, s *store
 	log.Infof("Watcher handle %d event: key=%s", msg.Action, msg.Key)
 	switch msg.Action {
 	case message.EventAdd:
-		if !message.ServiceFilter(msg) {
+		w.update(msg, s)
+	case message.EventDelete:
+		w.delete(msg, s)
+	}
+}
+
+func (w *Watcher) update(msg *message.Message, s *storer.GenericStore) {
+	if !message.ServiceFilter(msg) {
+		if !msg.HasNodesAttr() {
 			return
 		}
-
-		obj, ok := s.Store(msg.Key, msg)
-		oldMsg := obj.(*message.Message)
-		if !ok {
-			// Obtains a new entity with service information
-			log.Infof("Watcher obtains a new entity %s with service information", msg.Key)
-			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
-		} else if message.ServiceUpdate(oldMsg, msg) {
-			// Updates the service information of existing entity
-			log.Infof("Watcher updates the service information of existing entity %s", msg.Key)
-			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
-		} else if message.ServiceReplace(oldMsg, msg) {
-			// Replaces the service information of existing entity
-			log.Infof("Watcher replaces the service information of existing entity %s", msg.Key)
-
-			_ = discoverer.GetDiscoverer(oldMsg.DiscoveryType()).Delete(oldMsg)
-			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
-		} else {
-			log.Infof("Watcher update version only, key: %s, version: %d", msg.Key, msg.Version)
-			_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
-		}
-	case message.EventDelete:
-		obj, ok := s.Delete(msg.Key)
-		if ok {
-			// Deletes an existing entity
-			delMsg := obj.(*message.Message)
-			log.Infof("Watcher deletes an existing entity %s", delMsg.Key)
-			_ = discoverer.GetDiscoverer(delMsg.DiscoveryType()).Delete(delMsg)
-		}
+		w.delete(msg, s)
+		return
 	}
+
+	obj, ok := s.Store(msg.Key, msg)
+	if !ok {
+		// Obtains a new entity with service information
+		log.Infof("Watcher obtains a new entity %s with service information", msg.Key)
+		_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
+		return
+	}
+
+	oldMsg := obj.(*message.Message)
+	if message.ServiceUpdate(oldMsg, msg) {
+		// Updates the service information of existing entity
+		log.Infof("Watcher updates the service information of existing entity %s", msg.Key)
+		_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
+		return
+	}
+
+	if message.ServiceReplace(oldMsg, msg) {
+		// Replaces the service information of existing entity
+		log.Infof("Watcher replaces the service information of existing entity %s", msg.Key)
+
+		_ = discoverer.GetDiscoverer(oldMsg.DiscoveryType()).Delete(oldMsg)
+		_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Query(msg)
+
+		return
+	}
+
+	log.Infof("Watcher update version only, key: %s, version: %d", msg.Key, msg.Version)
+	_ = discoverer.GetDiscoverer(msg.DiscoveryType()).Update(oldMsg, msg)
+}
+
+func (w *Watcher) delete(msg *message.Message, s *storer.GenericStore) {
+	obj, ok := s.Delete(msg.Key)
+	if !ok {
+		return
+	}
+	// Deletes an existing entity
+	delMsg := obj.(*message.Message)
+	log.Infof("Watcher deletes an existing entity %s", delMsg.Key)
+	_ = discoverer.GetDiscoverer(delMsg.DiscoveryType()).Delete(delMsg)
 }

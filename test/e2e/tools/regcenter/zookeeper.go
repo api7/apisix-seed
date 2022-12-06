@@ -26,7 +26,13 @@ func NewZookeeper() *Zookeeper {
 
 func (zookeeper *Zookeeper) Online(node *common.Node) error {
 	nodeStr := `[{"host":"` + common.DOCKER_GATEWAY + `","port":` + node.Port + `}]`
-	_, err := zookeeper.conn.Create(zookeeper.prefix+"/"+node.ServiceName, []byte(nodeStr), 0, zk.WorldACL(zk.PermAll))
+	// zk does not allow duplicate registration
+	path := zookeeper.prefix + "/" + node.ServiceName
+	ret, _, err := zookeeper.conn.Get(path)
+	if ret != nil {
+		return nil
+	}
+	_, err = zookeeper.conn.Create(path, []byte(nodeStr), 0, zk.WorldACL(zk.PermAll))
 	if err != nil {
 		return err
 	}
