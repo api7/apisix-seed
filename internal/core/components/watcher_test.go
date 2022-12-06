@@ -1,6 +1,7 @@
 package components
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -65,7 +66,35 @@ func TestWatcherInit(t *testing.T) {
 	}).Return(nil)
 
 	watcher := Watcher{}
-	watcher.Init()
+	assert.Nil(t, watcher.Init())
+}
+
+func TestWatcher_Init_error(t *testing.T) {
+	// inject mock function
+	routeStg := &storer.MockInterface{}
+	routeStg.On("List", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	}).Return([]*message.Message{}, errors.New("list prefix is not found"))
+
+	serviceStg := &storer.MockInterface{}
+	serviceStg.On("List", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	}).Return([]*message.Message{}, nil)
+
+	storer.ClrearStores()
+	// init store
+	optRoute := storer.GenericStoreOption{
+		BasePath: "/apisix/routes",
+		Prefix:   "/apisix",
+	}
+	optService := storer.GenericStoreOption{
+		BasePath: "/apisix/services",
+		Prefix:   "/apisix",
+	}
+	assert.Nil(t, storer.InitStore("mock1", optRoute, routeStg))
+	assert.Nil(t, storer.InitStore("mock2", optService, serviceStg))
+
+	watcher := Watcher{}
+	err := watcher.Init()
+	assert.EqualError(t, err, "failed to load all etcd resources")
 }
 
 func TestWatcherWatch(t *testing.T) {

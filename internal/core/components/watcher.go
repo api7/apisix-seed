@@ -2,7 +2,7 @@ package components
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"runtime"
 	"sync"
 
@@ -22,17 +22,21 @@ type Watcher struct {
 }
 
 // Init: load apisix config from etcd, query service from discovery
-func (w *Watcher) Init() {
+func (w *Watcher) Init() error {
 	// the number of semaphore is referenced to https://github.com/golang/go/blob/go1.17.1/src/cmd/compile/internal/noder/noder.go#L38
 	w.sem = make(chan struct{}, runtime.GOMAXPROCS(0)+10)
 
+	loadSuccess := true
 	// List the initial information
 	for _, s := range storer.GetStores() {
 		//eg: query from etcd by prefix /apisix/routes/
 		msgs, err := s.List(message.ServiceFilter)
 		if err != nil {
-			panic(fmt.Sprintf("storer list error: %v", err))
+			log.Errorf("storer list error: %v", err)
+			loadSuccess = false
+			break
 		}
+
 		if len(msgs) == 0 {
 			continue
 		}
@@ -44,6 +48,11 @@ func (w *Watcher) Init() {
 		}
 		wg.Wait()
 	}
+
+	if !loadSuccess {
+		return errors.New("failed to load all etcd resources")
+	}
+	return nil
 }
 
 // Watch: when updating route、service、upstream, query service from discovery
