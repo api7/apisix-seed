@@ -24,6 +24,7 @@ jobs:
       run: |
         docker-compose -f ci/docker-compose.yml up -d
         sleep 5
+        docker logs apisix-seed
 
     - name: install ginkgo cli
       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.0.0
