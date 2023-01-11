@@ -225,7 +225,7 @@ func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Mes
 				log.Infof("watch changed, key: %s, version: %d", key, ev.Kv.Version)
 				msg, err := message.NewMessage(key, ev.Kv.Value, ev.Kv.Version, typ, message.ToA6Type(prefix))
 				if err != nil {
-					log.Warnf("etcd watch key[%s]'s %s event failed: %s", key, typ, err.Error())
+					log.Warnf("etcd watch key[%s]'s %d event failed: %s", key, typ, err.Error())
 					continue
 				}
 				msgs = append(msgs, msg)
