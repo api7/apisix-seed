@@ -3,9 +3,10 @@ package discoverer
 import (
 	"encoding/json"
 	"errors"
-	"github.com/api7/gopkg/pkg/log"
 	"sync"
 	"time"
+
+	"github.com/api7/gopkg/pkg/log"
 
 	"github.com/api7/apisix-seed/internal/core/message"
 

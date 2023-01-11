@@ -2,12 +2,13 @@ package discoverer
 
 import (
 	"fmt"
-	"github.com/nacos-group/nacos-sdk-go/common/logger"
 	"hash"
 	"hash/crc32"
 	"net/url"
 	"strconv"
 	"sync"
+
+	"github.com/nacos-group/nacos-sdk-go/common/logger"
 
 	"github.com/api7/apisix-seed/internal/conf"
 	"github.com/api7/apisix-seed/internal/core/message"
