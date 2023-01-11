@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/api7/gopkg/pkg/log"
 
 	"github.com/api7/apisix-seed/internal/core/message"
@@ -227,7 +225,7 @@ func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Mes
 				log.Infof("watch changed, key: %s, version: %d", key, ev.Kv.Version)
 				msg, err := message.NewMessage(key, ev.Kv.Value, ev.Kv.Version, typ, message.ToA6Type(prefix))
 				if err != nil {
-					log.Warnf("etcd watch event failed", zap.String("key", key), zap.Int("event", typ), zap.String("err", err.Error()))
+					log.Warnf("etcd watch key[%s]'s %d event failed: %s", key, typ, err.Error())
 					continue
 				}
 				msgs = append(msgs, msg)
