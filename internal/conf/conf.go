@@ -38,8 +38,8 @@ type Etcd struct {
 type Log struct {
 	Level        string
 	Path         string
-	MaxAge       time.Duration // 文件保存的最长时间
-	MaxSize      int64         // 单个文件大小
+	MaxAge       time.Duration
+	MaxSize      int64
 	RotationTime time.Duration `yaml:"roation_time"`
 }
 
