@@ -2,9 +2,9 @@ package discoverer
 
 import (
 	"fmt"
+	"github.com/api7/gopkg/pkg/log"
 
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/log"
 )
 
 var (

@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/api7/gopkg/pkg/log"
+
 	"github.com/api7/apisix-seed/internal/core/message"
-	"github.com/api7/apisix-seed/internal/log"
 )
 
 type Interface interface {

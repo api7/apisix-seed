@@ -2,10 +2,10 @@ package storer
 
 import (
 	"fmt"
+	"github.com/api7/gopkg/pkg/log"
 	"strings"
 
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/log"
 )
 
 var storeHub = map[string]*GenericStore{}

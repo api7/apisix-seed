@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/api7/gopkg/pkg/log"
+
 	"github.com/api7/apisix-seed/internal/core/message"
 
 	"github.com/api7/apisix-seed/internal/conf"
 
-	"github.com/api7/apisix-seed/internal/log"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
