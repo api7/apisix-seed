@@ -109,9 +109,13 @@ func initEtcdConfig(conf Etcd) {
 }
 
 func initLogConfig(conf Log) {
+	level := conf.Level
+	if level == "" {
+		level = "warn"
+	}
 	if conf.Path == "" {
 		LogConfig = &Log{
-			Level: conf.Level,
+			Level: level,
 		}
 		return
 	}
@@ -128,7 +132,7 @@ func initLogConfig(conf Log) {
 		roationTime = time.Hour
 	}
 	LogConfig = &Log{
-		Level:        conf.Level,
+		Level:        level,
 		Path:         conf.Path,
 		MaxAge:       maxAge,
 		MaxSize:      maxSize,
