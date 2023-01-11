@@ -50,7 +50,7 @@ func main() {
 	conf.InitConf()
 
 	if err := initLogger(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	etcdClient, err := storer.NewEtcd(conf.ETCDConfig)

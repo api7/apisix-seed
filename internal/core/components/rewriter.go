@@ -4,6 +4,8 @@ import (
 	"context"
 	"runtime"
 
+	"go.uber.org/zap"
+
 	"github.com/api7/gopkg/pkg/log"
 
 	"github.com/api7/apisix-seed/internal/core/message"
@@ -52,7 +54,7 @@ func (r *Rewriter) watch(ch chan *message.Message) {
 			// hand watcher notify message
 			_, entity, _ := storer.FromatKey(msg.Key, r.Prefix)
 			if entity == "" {
-				log.Errorf("key format Invaild: %s", msg.Key)
+				log.Errorf("invalid key format", zap.String("key", msg.Key))
 				return
 			}
 			if err := storer.GetStore(entity).UpdateNodes(r.ctx, msg); err != nil {
