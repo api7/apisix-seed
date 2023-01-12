@@ -40,7 +40,7 @@ type Log struct {
 	Path         string
 	MaxAge       time.Duration
 	MaxSize      int64
-	RotationTime time.Duration `yaml:"roation_time"`
+	RotationTime time.Duration `yaml:"rotation_time"`
 }
 
 type Config struct {
@@ -127,15 +127,15 @@ func initLogConfig(conf Log) {
 	if maxSize == 0 {
 		maxSize = 100 * 1024 * 1024
 	}
-	roationTime := conf.RotationTime
-	if roationTime == 0 {
-		roationTime = time.Hour
+	rotationTime := conf.RotationTime
+	if rotationTime == 0 {
+		rotationTime = time.Hour
 	}
 	LogConfig = &Log{
 		Level:        level,
 		Path:         conf.Path,
 		MaxAge:       maxAge,
 		MaxSize:      maxSize,
-		RotationTime: roationTime,
+		RotationTime: rotationTime,
 	}
 }
