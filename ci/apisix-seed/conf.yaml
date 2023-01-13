@@ -17,7 +17,7 @@ log:
   path: apisix-seed.log
   maxage: 24h
   maxsize: 102400
-  roation_time: 1h
+  rotation_time: 1h
 
 discovery:                       # service discovery center
   nacos:
