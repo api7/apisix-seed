@@ -12,6 +12,12 @@ etcd:
 
     verify: true                  # whether to verify the etcd endpoint certificate when setup a TLS connection to etcd,
     # the default value is true, e.g. the certificate will be verified strictly.
+log:
+  level: warn
+  path: apisix-seed.log
+  maxage: 24h
+  maxsize: 102400
+  rotation_time: 1h
 
 discovery:                       # service discovery center
   nacos:

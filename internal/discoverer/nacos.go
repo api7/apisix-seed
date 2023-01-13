@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/api7/apisix-seed/internal/core/message"
+	"github.com/nacos-group/nacos-sdk-go/common/logger"
 
 	"github.com/api7/apisix-seed/internal/conf"
-	"github.com/api7/apisix-seed/internal/log"
+	"github.com/api7/apisix-seed/internal/core/message"
+	"github.com/api7/gopkg/pkg/log"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
@@ -103,6 +104,7 @@ func NewNacosDiscoverer(disConfig interface{}) (Discoverer, error) {
 		crc:            crc32.NewIEEE(),
 		msgCh:          make(chan *message.Message, 10),
 	}
+	logger.SetLogger(log.DefaultLogger)
 	return &discoverer, nil
 }
 
@@ -339,6 +341,8 @@ func (d *NacosDiscoverer) newClient(namespace string) error {
 	}
 
 	d.namingClients[namespace] = newClients
+	// logger.InitLogger will be called, we should SetLogger again
+	logger.SetLogger(log.DefaultLogger)
 	log.Info("Successfully create a new Nacos client")
 	return nil
 }

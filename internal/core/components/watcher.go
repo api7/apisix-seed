@@ -6,11 +6,12 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/api7/gopkg/pkg/log"
+
 	"github.com/api7/apisix-seed/internal/core/message"
 
 	"github.com/api7/apisix-seed/internal/core/storer"
 	"github.com/api7/apisix-seed/internal/discoverer"
-	"github.com/api7/apisix-seed/internal/log"
 )
 
 type Watcher struct {

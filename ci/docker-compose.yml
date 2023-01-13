@@ -58,6 +58,7 @@ services:
       context: ./..
       dockerfile: Dockerfile.local
     restart: always
+    container_name: apisix-seed
     volumes:
       - ./apisix-seed/conf.yaml:/usr/local/apisix-seed/conf/conf.yaml:ro
     depends_on:

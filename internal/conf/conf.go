@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,6 +15,7 @@ type DisBuilder func([]byte) (interface{}, error)
 var (
 	WorkDir     = "."
 	ETCDConfig  *Etcd
+	LogConfig   *Log
 	DisConfigs  = make(map[string]interface{})
 	DisBuilders = make(map[string]DisBuilder)
 )
@@ -33,8 +35,17 @@ type Etcd struct {
 	TLS      *TLS
 }
 
+type Log struct {
+	Level        string
+	Path         string
+	MaxAge       time.Duration
+	MaxSize      int64
+	RotationTime time.Duration `yaml:"rotation_time"`
+}
+
 type Config struct {
 	Etcd      Etcd
+	Log       Log
 	Discovery map[string]interface{}
 }
 
@@ -68,6 +79,8 @@ func InitConf() {
 			DisConfigs[name] = disConfig
 		}
 
+		initLogConfig(config.Log)
+
 		if len(config.Etcd.Host) > 0 {
 			initEtcdConfig(config.Etcd)
 		}
@@ -92,5 +105,37 @@ func initEtcdConfig(conf Etcd) {
 		Password: conf.Password,
 		TLS:      conf.TLS,
 		Prefix:   prefix,
+	}
+}
+
+func initLogConfig(conf Log) {
+	level := conf.Level
+	if level == "" {
+		level = "warn"
+	}
+	if conf.Path == "" {
+		LogConfig = &Log{
+			Level: level,
+		}
+		return
+	}
+	maxAge := conf.MaxAge
+	if maxAge == 0 {
+		maxAge = 7 * 24 * time.Hour
+	}
+	maxSize := conf.MaxSize
+	if maxSize == 0 {
+		maxSize = 100 * 1024 * 1024
+	}
+	rotationTime := conf.RotationTime
+	if rotationTime == 0 {
+		rotationTime = time.Hour
+	}
+	LogConfig = &Log{
+		Level:        level,
+		Path:         conf.Path,
+		MaxAge:       maxAge,
+		MaxSize:      maxSize,
+		RotationTime: rotationTime,
 	}
 }
