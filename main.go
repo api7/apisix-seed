@@ -16,19 +16,19 @@ import (
 	"github.com/api7/apisix-seed/internal/discoverer"
 )
 
-func initLogger() error {
+func initLogger(logConf *conf.Log) error {
 
 	opts := []log.Option{
-		log.WithLogLevel(conf.LogConfig.Level),
+		log.WithLogLevel(logConf.Level),
 		log.WithSkipFrames(3),
 	}
-	if conf.LogConfig.Path != "" {
+	if logConf.Path != "" {
 		writer, err := rotatelogs.New(
-			conf.LogConfig.Path+"-%Y%m%d%H%M%S",
-			rotatelogs.WithLinkName(conf.LogConfig.Path),
-			rotatelogs.WithMaxAge(conf.LogConfig.MaxAge),
-			rotatelogs.WithRotationSize(conf.LogConfig.MaxSize),
-			rotatelogs.WithRotationTime(conf.LogConfig.RotationTime),
+			logConf.Path+"-%Y%m%d%H%M%S",
+			rotatelogs.WithLinkName(logConf.Path),
+			rotatelogs.WithMaxAge(logConf.MaxAge),
+			rotatelogs.WithRotationSize(logConf.MaxSize),
+			rotatelogs.WithRotationTime(logConf.RotationTime),
 		)
 		if err != nil {
 			return err
@@ -49,7 +49,7 @@ func initLogger() error {
 func main() {
 	conf.InitConf()
 
-	if err := initLogger(); err != nil {
+	if err := initLogger(conf.LogConfig); err != nil {
 		log.Fatal(err)
 	}
 
