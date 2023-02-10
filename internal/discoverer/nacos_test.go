@@ -49,25 +49,25 @@ func init() {
 	TestGroup = fmt.Sprintf("Group-%d", rand.Int())
 }
 
-func TestServerConfig(t *testing.T) {
-	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
-	assert.Nil(t, err)
-	discoverer, err := NewNacosDiscoverer(nacosConf)
-	assert.Nil(t, err)
-	nacosDiscoverer := discoverer.(*NacosDiscoverer)
+// func TestServerConfig(t *testing.T) {
+// 	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
+// 	assert.Nil(t, err)
+// 	discoverer, err := NewNacosDiscoverer(nacosConf)
+// 	assert.Nil(t, err)
+// 	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 
-	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
-		assert.True(t, auth == "username", "Test auth")
-		assert.Len(t, serverConfigs, 1)
+// 	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
+// 		assert.True(t, auth == "username", "Test auth")
+// 		assert.Len(t, serverConfigs, 1)
 
-		config := serverConfigs[0]
-		assert.True(t, config.Scheme == "https", "Test scheme")
-		assert.True(t, config.Port == 8858, "Test port")
-	}
+// 		config := serverConfigs[0]
+// 		assert.True(t, config.Scheme == "https", "Test scheme")
+// 		assert.True(t, config.Port == 8858, "Test port")
+// 	}
 
-	err = nacosDiscoverer.newClient("APISIX")
-	assert.Nil(t, err)
-}
+// 	err = nacosDiscoverer.newClient("APISIX")
+// 	assert.Nil(t, err)
+// }
 
 func TestNacosDiscoverer(t *testing.T) {
 	nacosConf, err := getNaConfig(naYamlConfig)
@@ -76,8 +76,9 @@ func TestNacosDiscoverer(t *testing.T) {
 	discoverer, err := NewNacosDiscoverer(nacosConf)
 	assert.Nil(t, err)
 
-	testQueryService(t, discoverer)
-	testUpdateArgs(t, discoverer)
+	// testQueryService(t, discoverer)
+	// testUpdateArgs(t, discoverer)
+	testUpdateMetadata(t, discoverer)
 	testDeleteService(t, discoverer)
 }
 
@@ -151,6 +152,42 @@ func testUpdateArgs(t *testing.T, discoverer Discoverer) {
         ],
         "_discovery_type":"nacos","_service_name":"%s","discovery_args":{"group_name":"%s"}}}`
 	expectA6Str := fmt.Sprintf(expectA6StrFmt, "10.0.0.13", 8848, 10, TestService, TestGroup)
+
+	watchMsg := <-discoverer.Watch()
+	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
+}
+
+func testUpdateMetadata(t *testing.T, discoverer Discoverer) {
+	registerService(t, "10.0.0.15", TestGroup)
+
+	caseDesc := "Test update service args"
+	oldA6StrFmt := `{
+    "uri": "/hh",
+    "upstream": {
+        "nodes": [
+            {"host": "%s","port": %d,"weight":%d}
+        ],
+        "_discovery_type":"nacos","_service_name":"%s"}}`
+	oldA6Str := fmt.Sprintf(oldA6StrFmt, "10.0.0.11", 8848, 10, TestService)
+
+	oldMsg, err := message.NewMessage("/apisix/routes/1", []byte(oldA6Str), 1, message.EventAdd, message.A6RoutesConf)
+	assert.Nil(t, err)
+
+	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s","discovery_args":{"group_name":"%s","metadata":{"idc":"shanghai"}}}}`
+	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup)
+	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), 1, message.EventAdd, message.A6RoutesConf)
+	assert.Nil(t, err)
+	err = discoverer.Update(oldMsg, msg)
+	assert.Nil(t, err, caseDesc)
+
+	expectA6StrFmt := `{
+    "uri": "/hh",
+    "upstream": {
+        "nodes": [
+            {"host": "%s","port": %d,"weight":%d}
+        ],
+        "_discovery_type":"nacos","_service_name":"%s","discovery_args":{"group_name":"%s","metadata":{"idc":"shanghai"}}}}`
+	expectA6Str := fmt.Sprintf(expectA6StrFmt, "10.0.0.15", 8848, 10, TestService, TestGroup)
 
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)

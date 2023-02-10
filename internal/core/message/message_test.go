@@ -19,7 +19,11 @@ func TestMessage(t *testing.T) {
         "_discovery_type": "nacos",
         "service_name": "APISIX-NACOS",
         "discovery_args": {
-            "group_name": "DEFAULT_GROUP"
+            "group_name": "DEFAULT_GROUP",
+			"metadata":{
+				"version":"v1",
+				"is_gray":true
+			}
         }
     },
     "create_time": 1648871506,
@@ -38,6 +42,8 @@ func TestMessage(t *testing.T) {
 	assert.Equal(t, "nacos", msg.DiscoveryType(), caseDesc)
 	assert.Equal(t, "APISIX-NACOS", msg.ServiceName(), caseDesc)
 	assert.Equal(t, "DEFAULT_GROUP", msg.DiscoveryArgs()["group_name"], caseDesc)
+	assert.Equal(t, "v1", msg.DiscoveryArgs()["metadata"].(map[string]interface{})["version"], caseDesc)
+	assert.Equal(t, true, msg.DiscoveryArgs()["metadata"].(map[string]interface{})["is_gray"], caseDesc)
 	assert.Equal(t, false, msg.HasNodesAttr(), caseDesc)
 
 	msg.InjectNodes([]*Node{
@@ -75,45 +81,6 @@ func TestServiceFilter(t *testing.T) {
 	}
 }
 
-func TestServiceReplace(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		key      string
-		value    string
-		newValue string
-		ret      bool
-	}{
-		{
-			desc:     "a6 conf no change",
-			key:      "/apisix/routes/a",
-			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
-			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
-			ret:      false,
-		},
-		{
-			desc:     "service_name changed",
-			key:      "/apisix/routes/b",
-			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
-			newValue: `{"uri":"/hh","upstream":{"discovery_type":"zk","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
-			ret:      false,
-		},
-		{
-			desc:     "args changed",
-			key:      "/apisix/routes/b",
-			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
-			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"NEW-DEFAULT_GROUP"}}}`,
-			ret:      true,
-		},
-	}
-	for _, tc := range testCases {
-		msg, err := NewMessage(tc.key, []byte(tc.value), 1, EventAdd, A6RoutesConf)
-		assert.Nil(t, err, tc.desc)
-		newMsg, err := NewMessage(tc.key, []byte(tc.newValue), 1, EventAdd, A6RoutesConf)
-		assert.Nil(t, err, tc.desc)
-		assert.Equal(t, tc.ret, ServiceUpdate(msg, newMsg), tc.desc)
-	}
-}
-
 func TestServiceUpdate(t *testing.T) {
 	testCases := []struct {
 		desc     string
@@ -134,13 +101,66 @@ func TestServiceUpdate(t *testing.T) {
 			key:      "/apisix/routes/b",
 			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
 			newValue: `{"uri":"/hh","upstream":{"discovery_type":"zk","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
-			ret:      true,
+			ret:      false,
 		},
 		{
 			desc:     "args changed",
 			key:      "/apisix/routes/b",
 			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
 			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"NEW-DEFAULT_GROUP"}}}`,
+			ret:      true,
+		},
+		{
+			desc:     "metadata changed",
+			key:      "/apisix/routes/b",
+			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP","metadata":{"version":"v1"}}}}`,
+			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP","metadata":{"version":"v1"}}}}`,
+			ret:      false,
+		},
+		{
+			desc:     "metadata changed",
+			key:      "/apisix/routes/b",
+			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP","metadata":{"version":"v1"}}}}`,
+			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP","metadata":{"version":"v2"}}}}`,
+			ret:      true,
+		},
+	}
+	for _, tc := range testCases {
+		msg, err := NewMessage(tc.key, []byte(tc.value), 1, EventAdd, A6RoutesConf)
+		assert.Nil(t, err, tc.desc)
+		newMsg, err := NewMessage(tc.key, []byte(tc.newValue), 1, EventAdd, A6RoutesConf)
+		assert.Nil(t, err, tc.desc)
+		assert.Equal(t, tc.ret, ServiceUpdate(msg, newMsg), tc.desc)
+	}
+}
+
+func TestServiceReplace(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		key      string
+		value    string
+		newValue string
+		ret      bool
+	}{
+		{
+			desc:     "a6 conf no change",
+			key:      "/apisix/routes/a",
+			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			ret:      false,
+		},
+		{
+			desc:     "service_name changed",
+			key:      "/apisix/routes/b",
+			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			newValue: `{"uri":"/hh","upstream":{"discovery_type":"zk","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			ret:      true,
+		},
+		{
+			desc:     "args changed",
+			key:      "/apisix/routes/b",
+			value:    `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP"}}}`,
+			newValue: `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"APISIX-NACOS","discovery_args":{"group_name":"DEFAULT_GROUP","metadata":{"version":"v2"}}}}`,
 			ret:      false,
 		},
 	}
