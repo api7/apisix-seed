@@ -179,6 +179,8 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 	serviceId := serviceID(oldMsg.ServiceName(), oldMsg.DiscoveryArgs())
 	newServiceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
 
+	log.Errorf("============== levy test update, old serviceId: %s, new serviceId: %s", serviceId, newServiceId)
+
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
 	if discover, ok := d.cache[serviceId]; ok {
@@ -186,6 +188,7 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 			discover.a6Conf[msg.Key].Version = msg.Version
 			return nil
 		}
+
 		d.unsubscribe(discover)
 
 		discover.args = msg.DiscoveryArgs()
@@ -198,8 +201,8 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 		discover.nodes = nodes
 		discover.a6Conf[msg.Key] = msg
 
-		delete(d.cache, serviceId)
 		d.cache[newServiceId] = discover
+		// delete(d.cache, serviceId)
 
 		d.msgCh <- msg
 	}
@@ -232,6 +235,8 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 		log.Errorf("Nacos get service[%s] error: %s", service.name, err)
 		return nil, err
 	}
+
+	log.Errorf("============== levy test fetch")
 
 	// watch the new service
 	if err = d.subscribe(service, client); err != nil {
@@ -272,6 +277,7 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 
 func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interface{}) func([]model.SubscribeService, error) {
 	return func(services []model.SubscribeService, err error) {
+		log.Errorf("============== levy test callback")
 		nodes := make([]*message.Node, 0)
 		meta, ok := metadata.(map[string]interface{})
 		for _, inst := range services {
@@ -301,8 +307,15 @@ func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interf
 
 		d.cacheMutex.Lock()
 		discover := d.cache[serviceId]
-		discover.nodes = nodes
+		log.Errorf("============== levy test callback after loop, serviceId: %s", serviceId)
+		if discover != nil {
+			discover.nodes = nodes
+		}
 		d.cacheMutex.Unlock()
+
+		if discover == nil {
+			return
+		}
 
 		for _, msg := range discover.a6Conf {
 			msg.InjectNodes(nodes)
