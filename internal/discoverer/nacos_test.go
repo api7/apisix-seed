@@ -42,11 +42,13 @@ func getNaConfig(str string) (*conf.Nacos, error) {
 
 var TestService string
 var TestGroup string
+var TestGroup_2 string
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 	TestService = fmt.Sprintf("APISIX-SEED-TEST-%d", rand.Int())
 	TestGroup = fmt.Sprintf("Group-%d", rand.Int())
+	TestGroup_2 = fmt.Sprintf("Group-%d", rand.Int())
 }
 
 func TestServerConfig(t *testing.T) {
@@ -209,7 +211,7 @@ func testUpdateMatchedMetadata(t *testing.T, discoverer Discoverer) {
 
 	// matched metadata
 	a6fmt := `{"uri":"/hh","upstream":{"discovery_type":"nacos","service_name":"%s","discovery_args":{"group_name":"%s","metadata":{"idc":"shanghai"}}}}`
-	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup)
+	a6Str := fmt.Sprintf(a6fmt, TestService, TestGroup_2)
 	msg, err := message.NewMessage("/apisix/routes/1", []byte(a6Str), 1, message.EventAdd, message.A6RoutesConf)
 	assert.Nil(t, err)
 	err = discoverer.Update(oldMsg, msg)
@@ -222,7 +224,7 @@ func testUpdateMatchedMetadata(t *testing.T, discoverer Discoverer) {
 	        {"host": "%s","port": %d,"weight":%d}
 	    ],
 	    "_discovery_type":"nacos","_service_name":"%s","discovery_args":{"group_name":"%s","metadata":{"idc":"shanghai"}}}}`
-	expectA6Str := fmt.Sprintf(expectA6StrFmt, "10.0.0.16", 8848, 10, TestService, TestGroup)
+	expectA6Str := fmt.Sprintf(expectA6StrFmt, "10.0.0.16", 8848, 10, TestService, TestGroup_2)
 
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
