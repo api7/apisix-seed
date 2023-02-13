@@ -242,7 +242,7 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 
 	// metadata
 	metadata := service.args["metadata"]
-	nodes := make([]*message.Node, 0)
+	var nodes []*message.Node
 	for _, host := range serviceInfo.Hosts {
 		if metadata != nil {
 			discard := 0
@@ -273,7 +273,7 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 
 func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interface{}) func([]model.SubscribeService, error) {
 	return func(services []model.SubscribeService, err error) {
-		nodes := make([]*message.Node, 0)
+		var nodes []*message.Node
 		meta, ok := metadata.(map[string]interface{})
 		for _, inst := range services {
 			if ok {
