@@ -199,8 +199,8 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 		discover.nodes = nodes
 		discover.a6Conf[msg.Key] = msg
 
+		delete(d.cache, serviceId)
 		d.cache[newServiceId] = discover
-		// delete(d.cache, serviceId)
 
 		d.msgCh <- msg
 	}
