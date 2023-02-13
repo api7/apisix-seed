@@ -302,14 +302,8 @@ func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interf
 
 		d.cacheMutex.Lock()
 		discover := d.cache[serviceId]
-		if discover != nil {
-			discover.nodes = nodes
-		}
+		discover.nodes = nodes
 		d.cacheMutex.Unlock()
-
-		if discover == nil {
-			return
-		}
 
 		for _, msg := range discover.a6Conf {
 			msg.InjectNodes(nodes)
