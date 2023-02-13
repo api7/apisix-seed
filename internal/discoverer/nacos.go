@@ -179,8 +179,6 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 	serviceId := serviceID(oldMsg.ServiceName(), oldMsg.DiscoveryArgs())
 	newServiceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
 
-	log.Errorf("============== levy test update, old serviceId: %s, new serviceId: %s", serviceId, newServiceId)
-
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
 	if discover, ok := d.cache[serviceId]; ok {
@@ -236,8 +234,6 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 		return nil, err
 	}
 
-	log.Errorf("============== levy test fetch")
-
 	// watch the new service
 	if err = d.subscribe(service, client); err != nil {
 		log.Errorf("Nacos subscribe service[%s] error: %s", service.name, err)
@@ -277,7 +273,6 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 
 func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interface{}) func([]model.SubscribeService, error) {
 	return func(services []model.SubscribeService, err error) {
-		log.Errorf("============== levy test callback")
 		nodes := make([]*message.Node, 0)
 		meta, ok := metadata.(map[string]interface{})
 		for _, inst := range services {
@@ -307,7 +302,6 @@ func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interf
 
 		d.cacheMutex.Lock()
 		discover := d.cache[serviceId]
-		log.Errorf("============== levy test callback after loop, serviceId: %s", serviceId)
 		if discover != nil {
 			discover.nodes = nodes
 		}

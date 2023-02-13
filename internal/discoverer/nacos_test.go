@@ -49,25 +49,25 @@ func init() {
 	TestGroup = fmt.Sprintf("Group-%d", rand.Int())
 }
 
-// func TestServerConfig(t *testing.T) {
-// 	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
-// 	assert.Nil(t, err)
-// 	discoverer, err := NewNacosDiscoverer(nacosConf)
-// 	assert.Nil(t, err)
-// 	nacosDiscoverer := discoverer.(*NacosDiscoverer)
+func TestServerConfig(t *testing.T) {
+	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
+	assert.Nil(t, err)
+	discoverer, err := NewNacosDiscoverer(nacosConf)
+	assert.Nil(t, err)
+	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 
-// 	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
-// 		assert.True(t, auth == "username", "Test auth")
-// 		assert.Len(t, serverConfigs, 1)
+	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
+		assert.True(t, auth == "username", "Test auth")
+		assert.Len(t, serverConfigs, 1)
 
-// 		config := serverConfigs[0]
-// 		assert.True(t, config.Scheme == "https", "Test scheme")
-// 		assert.True(t, config.Port == 8858, "Test port")
-// 	}
+		config := serverConfigs[0]
+		assert.True(t, config.Scheme == "https", "Test scheme")
+		assert.True(t, config.Port == 8858, "Test port")
+	}
 
-// 	err = nacosDiscoverer.newClient("APISIX")
-// 	assert.Nil(t, err)
-// }
+	err = nacosDiscoverer.newClient("APISIX")
+	assert.Nil(t, err)
+}
 
 func TestNacosDiscoverer(t *testing.T) {
 	nacosConf, err := getNaConfig(naYamlConfig)
@@ -77,10 +77,10 @@ func TestNacosDiscoverer(t *testing.T) {
 	assert.Nil(t, err)
 
 	testQueryService(t, discoverer)
-	// testUpdateArgs(t, discoverer)
+	testUpdateArgs(t, discoverer)
 	testUpdateUnmatchedMetadata(t, discoverer)
 	testUpdateMatchedMetadata(t, discoverer)
-	// testDeleteService(t, discoverer)
+	testDeleteService(t, discoverer)
 }
 
 func testQueryService(t *testing.T, discoverer Discoverer) {
