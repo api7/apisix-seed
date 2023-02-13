@@ -161,7 +161,7 @@ func testUpdateArgs(t *testing.T, discoverer Discoverer) {
 }
 
 func testUpdateUnmatchedMetadata(t *testing.T, discoverer Discoverer) {
-	registerService(t, "10.0.0.15", TestGroup)
+	registerService(t, "10.0.0.15", "test")
 
 	caseDesc := "Test update service args"
 	oldA6StrFmt := `{
