@@ -47,25 +47,25 @@ func init() {
 	TestService = fmt.Sprintf("APISIX-SEED-TEST-%d", rand.Int())
 }
 
-// func TestServerConfig(t *testing.T) {
-// 	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
-// 	assert.Nil(t, err)
-// 	discoverer, err := NewNacosDiscoverer(nacosConf)
-// 	assert.Nil(t, err)
-// 	nacosDiscoverer := discoverer.(*NacosDiscoverer)
+func TestServerConfig(t *testing.T) {
+	nacosConf, err := getNaConfig(naYamlConfigWithPasswd)
+	assert.Nil(t, err)
+	discoverer, err := NewNacosDiscoverer(nacosConf)
+	assert.Nil(t, err)
+	nacosDiscoverer := discoverer.(*NacosDiscoverer)
 
-// 	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
-// 		assert.True(t, auth == "username", "Test auth")
-// 		assert.Len(t, serverConfigs, 1)
+	for auth, serverConfigs := range nacosDiscoverer.ServerConfigs {
+		assert.True(t, auth == "username", "Test auth")
+		assert.Len(t, serverConfigs, 1)
 
-// 		config := serverConfigs[0]
-// 		assert.True(t, config.Scheme == "https", "Test scheme")
-// 		assert.True(t, config.Port == 8858, "Test port")
-// 	}
+		config := serverConfigs[0]
+		assert.True(t, config.Scheme == "https", "Test scheme")
+		assert.True(t, config.Port == 8858, "Test port")
+	}
 
-// 	err = nacosDiscoverer.newClient("APISIX")
-// 	assert.Nil(t, err)
-// }
+	err = nacosDiscoverer.newClient("APISIX")
+	assert.Nil(t, err)
+}
 
 func TestNacosDiscoverer(t *testing.T) {
 	nacosConf, err := getNaConfig(naYamlConfig)
@@ -164,7 +164,7 @@ func testUpdateArgs(t *testing.T, discoverer Discoverer) {
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
 
-	discoverer.Delete(msg)
+	_ = discoverer.Delete(msg)
 }
 
 func testUpdateUnmatchedMetadata(t *testing.T, discoverer Discoverer) {
@@ -202,7 +202,7 @@ func testUpdateUnmatchedMetadata(t *testing.T, discoverer Discoverer) {
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
 
-	discoverer.Delete(msg)
+	_ = discoverer.Delete(msg)
 }
 
 func testUpdateMatchedMetadata(t *testing.T, discoverer Discoverer) {
@@ -242,7 +242,7 @@ func testUpdateMatchedMetadata(t *testing.T, discoverer Discoverer) {
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
 
-	discoverer.Delete(msg)
+	_ = discoverer.Delete(msg)
 }
 
 func testOnlyUpdateMetadata(t *testing.T, discoverer Discoverer) {
@@ -276,7 +276,7 @@ func testOnlyUpdateMetadata(t *testing.T, discoverer Discoverer) {
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
 
-	discoverer.Delete(msg)
+	_ = discoverer.Delete(msg)
 }
 
 func testDeleteService(t *testing.T, discoverer Discoverer) {
