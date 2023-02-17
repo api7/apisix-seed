@@ -175,8 +175,10 @@ func (d *NacosDiscoverer) Delete(msg *message.Message) error {
 }
 
 func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
-	serviceId := serviceID(oldMsg.ServiceName(), oldMsg.DiscoveryArgs())
-	newServiceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
+	msgArgs := oldMsg.DiscoveryArgs()
+	newMsgArgs := msg.DiscoveryArgs()
+	serviceId := serviceID(oldMsg.ServiceName(), msgArgs)
+	newServiceId := serviceID(msg.ServiceName(), newMsgArgs)
 
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
@@ -187,18 +189,24 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 		}
 		d.unsubscribe(discover)
 
-		discover.args = msg.DiscoveryArgs()
-		nodes, err := d.fetch(discover)
+		newDiscover := &NacosService{
+			args: msg.DiscoveryArgs(),
+			id:   newServiceId,
+			name: msg.ServiceName(),
+		}
+		nodes, err := d.fetch(newDiscover)
 		if err != nil {
 			return err
 		}
 
 		msg.InjectNodes(nodes)
-		discover.nodes = nodes
-		discover.a6Conf[msg.Key] = msg
+		newDiscover.nodes = nodes
+		newDiscover.a6Conf = map[string]*message.Message{
+			msg.Key: msg,
+		}
 
 		delete(d.cache, serviceId)
-		d.cache[newServiceId] = discover
+		d.cache[newServiceId] = newDiscover
 
 		d.msgCh <- msg
 	}
