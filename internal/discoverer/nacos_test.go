@@ -160,7 +160,7 @@ func testUpdateArgs(t *testing.T, discoverer Discoverer) {
 // If use the wrong sericeId to cache, register a new instance will raise a panic
 func testCacheFlow(t *testing.T, discoverer Discoverer) {
 	registerService(t, "10.0.0.15", TestGroup)
-	_ = <-discoverer.Watch()
+	<-discoverer.Watch()
 }
 
 func testDeleteService(t *testing.T, discoverer Discoverer) {
