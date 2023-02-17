@@ -164,6 +164,10 @@ func testUpdateArgs(t *testing.T, discoverer Discoverer) {
 	watchMsg := <-discoverer.Watch()
 	assert.JSONEq(t, expectA6Str, naMsg2Value(watchMsg), caseDesc)
 
+	// If use the wrong sericeId to cache, register a new instance will raise a panic
+	registerService(t, "10.0.0.14", TestGroup, map[string]string{"idc": "shanghai"})
+	<-discoverer.Watch()
+
 	_ = discoverer.Delete(msg)
 }
 
@@ -289,7 +293,7 @@ func testDeleteService(t *testing.T, discoverer Discoverer) {
 	err = discoverer.Delete(msg)
 	assert.Nil(t, err)
 
-	registerService(t, "10.0.0.14", "", map[string]string{"idc": "shanghai"})
+	registerService(t, "10.0.0.18", "", map[string]string{"idc": "shanghai"})
 	select {
 	case <-discoverer.Watch():
 		// Since the subscription is cancelled, the receiving operation will be blocked
