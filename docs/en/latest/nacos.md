@@ -26,6 +26,7 @@ description: This document contains information about how to use Nacos as servic
 #
 -->
 
+# Installation
 
 ## Deploy Nacos
 
@@ -108,3 +109,45 @@ Send a request to confirm whether service discovery is in effect:
 ```bash
 curl http://127.0.0.1:9080/get -H 'Host: httpbin'
 ```
+
+# Features
+
+## Metadata
+
+Assume that there are 6 nodes under the nacos internal triple test_ns/test_group/APISIX-NACOS:
+
+192.168.0.10 ~ 192.168.0.15 （simplified to IPs for ease of description, omitting ports and other information）
+
+where
+
+192.168.0.10 ~ 192.168.0.12 metadata {"version": "v1"}，
+
+192.168.0.13 ~ 192.168.0.15 metadata {"version": "v2"}
+
+Configuration in APISIX
+
+```
+curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
+{
+    "uris": "/*",
+    "hosts": [
+        "httpbin"
+    ],
+    "upstream": {
+        "discovery_type": "nacos",
+        "service_name": "httpbin",
+        "type": "roundrobin",
+        "discovery_args": {
+          "namespace_id": "test_ns",
+          "group_name": "test_group"
+          "metadata": {         <==== here
+            "version": "v1"
+          }
+        }
+    }
+}'
+```
+
+According to the above configuration example, the list of services in APISIX upstream is:
+
+192.168.0.10 ~ 192.168.0.12

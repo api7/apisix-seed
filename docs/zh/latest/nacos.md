@@ -26,7 +26,7 @@ description: 本篇文档介绍了如何通过 apisix-seed 在 Apache APISIX 中
 #
 -->
 
-
+# 安装
 ## 部署 Nacos
 
 使用 Nacos Docker 镜像快速部署 Nacos:
@@ -90,7 +90,7 @@ apisix start
 
 通过 Apache APISIX 的 Admin API 接口创建路由:
 ```bash
-curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
+curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
 {
     "uris": "/*",
     "hosts": [
@@ -108,3 +108,44 @@ curl http://127.0.0.1:9080/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f13
 ```bash
 curl http://127.0.0.1:9080/get -H 'Host: httpbin'
 ```
+
+# 功能
+## 支持 metadata
+
+假设 nacos 内部三元组 test_ns/test_group/APISIX-NACOS 下有 6 个节点:
+
+192.168.0.10 ~ 192.168.0.15 （为方便描述，简化为 IP，省略端口等信息）
+
+其中
+
+192.168.0.10 ~ 192.168.0.12 metadata {"version": "v1"}，
+
+192.168.0.13 ~ 192.168.0.15 metadata {"version": "v2"}
+
+在 APISIX 中配置
+
+```
+curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
+{
+    "uris": "/*",
+    "hosts": [
+        "httpbin"
+    ],
+    "upstream": {
+        "discovery_type": "nacos",
+        "service_name": "httpbin",
+        "type": "roundrobin",
+        "discovery_args": {
+          "namespace_id": "test_ns",
+          "group_name": "test_group"
+          "metadata": {         <==== here
+            "version": "v1"
+          }
+        }
+    }
+}'
+```
+
+按照以上配置示例，APISIX upstream 中的服务列表是：
+
+192.168.0.10 ~ 192.168.0.12
