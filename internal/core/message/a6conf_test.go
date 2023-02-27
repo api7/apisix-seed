@@ -20,7 +20,11 @@ func TestNewA6Conf_Routes(t *testing.T) {
         "discovery_type": "nacos",
         "service_name": "APISIX-NACOS",
         "discovery_args": {
-            "group_name": "DEFAULT_GROUP"
+            "group_name": "DEFAULT_GROUP",
+			"metadata":{
+				"version":"v1",
+				"is_gray":true
+			}
         }
     }
 }`,
@@ -49,6 +53,8 @@ func TestNewA6Conf_Routes(t *testing.T) {
 			assert.Nil(t, err, v.desc)
 			assert.Equal(t, "nacos", a6.GetUpstream().DiscoveryType)
 			assert.Equal(t, "APISIX-NACOS", a6.GetUpstream().ServiceName)
+			assert.Equal(t, "v1", a6.GetUpstream().DiscoveryArgs.Metadata["version"])
+			assert.Equal(t, true, a6.GetUpstream().DiscoveryArgs.Metadata["is_gray"])
 		}
 
 	}
@@ -432,7 +438,10 @@ func TestMarshal_Upstreams(t *testing.T) {
     "discovery_type":"nacos",
     "service_name":"APISIX-NACOS",
     "discovery_args":{
-        "group_name":"DEFAULT_GROUP"
+        "group_name":"DEFAULT_GROUP",
+		"metadata":{
+			"version":"v1"
+		}
     },
     "create_time":1648871506,
     "update_time":1648871506
@@ -452,7 +461,10 @@ func TestMarshal_Upstreams(t *testing.T) {
 	"_discovery_type": "nacos",
 	"_service_name": "APISIX-NACOS",
 	"discovery_args": {
-		"group_name": "DEFAULT_GROUP"
+		"group_name": "DEFAULT_GROUP",
+		"metadata":{
+			"version":"v1"
+		}
 	},
 	"nodes": [
 		{

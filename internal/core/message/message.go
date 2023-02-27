@@ -1,5 +1,9 @@
 package message
 
+import (
+	"reflect"
+)
+
 type StoreEvent = int
 
 const (
@@ -57,14 +61,15 @@ func (msg *Message) DiscoveryType() string {
 	return up.DupDiscoveryType
 }
 
-func (msg *Message) DiscoveryArgs() map[string]string {
+func (msg *Message) DiscoveryArgs() map[string]interface{} {
 	up := msg.a6Conf.GetUpstream()
 	if up.DiscoveryArgs == nil {
 		return nil
 	}
-	return map[string]string{
+	return map[string]interface{}{
 		"namespace_id": up.DiscoveryArgs.NamespaceID,
 		"group_name":   up.DiscoveryArgs.GroupName,
+		"metadata":     up.DiscoveryArgs.Metadata,
 	}
 }
 
@@ -102,7 +107,8 @@ func ServiceUpdate(msg, newMsg *Message) bool {
 		return true
 	}
 	if args["group_name"] != newArgs["group_name"] ||
-		args["namespace_id"] != newArgs["namespace_id"] {
+		args["namespace_id"] != newArgs["namespace_id"] ||
+		!reflect.DeepEqual(args["metadata"], newArgs["metadata"]) {
 		return true
 	}
 

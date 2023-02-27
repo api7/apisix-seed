@@ -7,8 +7,9 @@ import (
 )
 
 type UpstreamArg struct {
-	NamespaceID string `json:"namespace_id,omitempty"`
-	GroupName   string `json:"group_name,omitempty"`
+	NamespaceID string                 `json:"namespace_id,omitempty"`
+	GroupName   string                 `json:"group_name,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type Upstream struct {

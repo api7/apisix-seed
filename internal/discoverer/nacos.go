@@ -5,6 +5,7 @@ import (
 	"hash"
 	"hash/crc32"
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync"
 
@@ -24,10 +25,11 @@ func init() {
 	Discoveries["nacos"] = NewNacosDiscoverer
 }
 
-func serviceID(service string, args map[string]string) string {
+func serviceID(service string, args map[string]interface{}) string {
 	id, group := "", ""
 	if args != nil {
-		id, group = args["namespace_id"], args["group_name"]
+		id, _ = args["namespace_id"].(string)
+		group, _ = args["group_name"].(string)
 	}
 	serviceId := fmt.Sprintf("%s@%s@%s", id, group, service)
 	return serviceId
@@ -36,7 +38,7 @@ func serviceID(service string, args map[string]string) string {
 type NacosService struct {
 	id     string
 	name   string
-	args   map[string]string
+	args   map[string]interface{}
 	nodes  []*message.Node             // nodes are the upstream machines of the service
 	a6Conf map[string]*message.Message // entities are the upstreams/services/routes that use the service
 }
@@ -183,10 +185,11 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
 	if discover, ok := d.cache[serviceId]; ok {
-		if serviceId == newServiceId {
+		if serviceId == newServiceId && reflect.DeepEqual(msgArgs["metadata"], newMsgArgs["metadata"]) {
 			discover.a6Conf[msg.Key].Version = msg.Version
 			return nil
 		}
+
 		d.unsubscribe(discover)
 
 		newDiscover := &NacosService{
@@ -220,7 +223,7 @@ func (d *NacosDiscoverer) Watch() chan *message.Message {
 
 func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) {
 	// if the namespace client has not yet been created
-	namespace := service.args["namespace_id"]
+	namespace, _ := service.args["namespace_id"].(string)
 	if _, ok := d.namingClients[namespace]; !ok {
 		err := d.newClient(namespace)
 		if err != nil {
@@ -230,9 +233,10 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 
 	client := d.namingClients[namespace][d.hash(service.id, namespace)]
 
+	groupName, _ := service.args["group_name"].(string)
 	serviceInfo, err := client.GetService(vo.GetServiceParam{
 		ServiceName: service.name,
-		GroupName:   service.args["group_name"],
+		GroupName:   groupName,
 	})
 	if err != nil {
 		log.Errorf("Nacos get service[%s] error: %s", service.name, err)
@@ -245,37 +249,65 @@ func (d *NacosDiscoverer) fetch(service *NacosService) ([]*message.Node, error) 
 		return nil, err
 	}
 
-	nodes := make([]*message.Node, len(serviceInfo.Hosts))
-	for i, host := range serviceInfo.Hosts {
+	// metadata
+	metadata := service.args["metadata"]
+	nodes := make([]*message.Node, 0)
+	for _, host := range serviceInfo.Hosts {
+		if metadata != nil {
+			discard := 0
+			for k, v := range metadata.(map[string]interface{}) {
+				if host.Metadata[k] != v {
+					discard = 1
+				}
+			}
+			if discard == 1 {
+				continue
+			}
+		}
+
 		weight := int(host.Weight)
 		if weight == 0 {
 			weight = d.weight
 		}
 
-		nodes[i] = &message.Node{
+		nodes = append(nodes, &message.Node{
 			Host:   host.Ip,
 			Port:   int(host.Port),
 			Weight: weight,
-		}
+		})
 	}
 
 	return nodes, nil
 }
 
-func (d *NacosDiscoverer) newSubscribeCallback(serviceId string) func([]model.SubscribeService, error) {
+func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interface{}) func([]model.SubscribeService, error) {
 	return func(services []model.SubscribeService, err error) {
-		nodes := make([]*message.Node, len(services))
-		for i, inst := range services {
+		nodes := make([]*message.Node, 0)
+		meta, ok := metadata.(map[string]interface{})
+
+		for _, inst := range services {
+			if ok {
+				discard := 0
+				for k, v := range meta {
+					if inst.Metadata[k] != v {
+						discard = 1
+					}
+				}
+				if discard == 1 {
+					continue
+				}
+			}
+
 			weight := int(inst.Weight)
 			if weight == 0 {
 				weight = d.weight
 			}
 
-			nodes[i] = &message.Node{
+			nodes = append(nodes, &message.Node{
 				Host:   inst.Ip,
 				Port:   int(inst.Port),
 				Weight: weight,
-			}
+			})
 		}
 
 		d.cacheMutex.Lock()
@@ -292,12 +324,13 @@ func (d *NacosDiscoverer) newSubscribeCallback(serviceId string) func([]model.Su
 }
 
 func (d *NacosDiscoverer) subscribe(service *NacosService, client naming_client.INamingClient) error {
-	log.Infof("Nacos subscribe service %s", service.name)
+	groupName, _ := service.args["group_name"].(string)
+	log.Infof("Nacos subscribe service: %s, groupName: %s", service.name, groupName)
 
 	param := &vo.SubscribeParam{
 		ServiceName:       service.name,
-		GroupName:         service.args["group_name"],
-		SubscribeCallback: d.newSubscribeCallback(service.id),
+		GroupName:         groupName,
+		SubscribeCallback: d.newSubscribeCallback(service.id, service.args["metadata"]),
 	}
 
 	// TODO: retry if failed to Subscribe
@@ -314,8 +347,9 @@ func (d *NacosDiscoverer) unsubscribe(service *NacosService) {
 	log.Infof("Nacos unsubscribe service %s", service.name)
 	param := d.params[service.id]
 
-	namespace := service.args["namespace_id"]
+	namespace, _ := service.args["namespace_id"].(string)
 	client := d.namingClients[namespace][d.hash(service.id, namespace)]
+
 	// the nacos unsubscribe function returns only nil
 	// so ignore the error handling
 	_ = client.Unsubscribe(param)

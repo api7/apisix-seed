@@ -26,12 +26,13 @@ description: This document contains information about how to use Nacos as servic
 #
 -->
 
+# Installation
 
 ## Deploy Nacos
 
 Quickly deploy Nacos using the Nacos Docker image:
 ```bash
-docker run --name nacos-quick -e MODE=standalone -p 8848:8848 -d nacos/nacos-server:2.0.2
+docker run --name nacos-quick -e MODE=standalone -p 8848:8848 -d nacos/nacos-server:1.4.1
 ```
 
 ## Install APISIX-Seed
@@ -108,3 +109,89 @@ Send a request to confirm whether service discovery is in effect:
 ```bash
 curl http://127.0.0.1:9080/get -H 'Host: httpbin'
 ```
+
+# Features
+
+## Metadata
+
+APISIX-SEED supports the grouping of services according to metadata, let's look at an example
+
+Register 2 instances within nacos:
+
+```
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance?serviceName=httpbin&ip=127.0.0.1&port=8080&metadata=%7B%22version%22:%22v1%22%7D&ephemeral=false'
+
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance?serviceName=httpbin&ip=127.0.0.1&port=8081&metadata=%7B%22version%22:%22v2%22%7D&ephemeral=false'
+
+```
+
+Where the metadata information for instance 127.0.0.1:8080 is {"version": "v1"}
+
+And the metadata information for instance 127.0.0.1:8081 is {"version": "v2"}
+
+Configure APISIX to only fetch upstream instances with version = v1
+
+```
+curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
+{
+    "uri": "/*",
+    "hosts": [
+        "httpbin"
+    ],
+    "upstream": {
+        "discovery_type": "nacos",
+        "service_name": "httpbin",
+        "type": "roundrobin",
+        "discovery_args": {
+          "metadata": {
+            "version": "v1"
+          }
+        }
+    }
+}'
+```
+
+Check the upstream
+
+```
+curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1'
+
+{
+  "value": {
+    "hosts": [
+      "httpbin"
+    ],
+    "update_time": 1677482525,
+    "upstream": {
+      "hash_on": "vars",
+      "nodes": [
+        {
+          "weight": 1,
+          "port": 8080,
+          "host": "127.0.0.1"
+        }
+      ],
+      "discovery_args": {
+        "metadata": {
+          "version": "v1"
+        }
+      },
+      "_service_name": "httpbin",
+      "_discovery_type": "nacos",
+      "pass_host": "pass",
+      "scheme": "http",
+      "type": "roundrobin"
+    },
+    "id": "1",
+    "status": 1,
+    "create_time": 1677482525,
+    "uri": "/*",
+    "priority": 0
+  },
+  "key": "/apisix/routes/1",
+  "createdIndex": 557,
+  "modifiedIndex": 559
+}
+```
+
+As you can see, only the upstream instance 127.0.0.1:8080 with version = v1 is fetched
