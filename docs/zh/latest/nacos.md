@@ -31,7 +31,7 @@ description: 本篇文档介绍了如何通过 apisix-seed 在 Apache APISIX 中
 
 使用 Nacos Docker 镜像快速部署 Nacos:
 ```bash
-docker run --name nacos-quick -e MODE=standalone -p 8848:8848 -d nacos/nacos-server:2.0.2
+docker run --name nacos-quick -e MODE=standalone -p 8848:8848 -d nacos/nacos-server:1.4.1
 ```
 
 ## 安装 APISIX-Seed
@@ -92,7 +92,7 @@ apisix start
 ```bash
 curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
 {
-    "uris": "/*",
+    "uri": "/*",
     "hosts": [
         "httpbin"
     ],
@@ -109,25 +109,30 @@ curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f13
 curl http://127.0.0.1:9080/get -H 'Host: httpbin'
 ```
 
-# 功能
+# 功能介绍
 ## 支持 metadata
 
-假设 nacos 内部三元组 test_ns/test_group/APISIX-NACOS 下有 6 个节点:
+APISIX-SEED 支持根据 metadata 来对服务进行分组，让我们来看一个例子
 
-192.168.0.10 ~ 192.168.0.15 （为方便描述，简化为 IP，省略端口等信息）
+在 nacos 内部注册 2 个实例:
 
-其中
+```
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance?serviceName=httpbin&ip=127.0.0.1&port=8080&metadata=%7B%22version%22:%22v1%22%7D&ephemeral=false'
 
-192.168.0.10 ~ 192.168.0.12 metadata {"version": "v1"}，
+curl -X POST 'http://127.0.0.1:8848/nacos/v1/ns/instance?serviceName=httpbin&ip=127.0.0.1&port=8081&metadata=%7B%22version%22:%22v2%22%7D&ephemeral=false'
 
-192.168.0.13 ~ 192.168.0.15 metadata {"version": "v2"}
+```
 
-在 APISIX 中配置
+其中实例 127.0.0.1:8080 的 metadata 信息为 {"version":"v1"}，
+
+实例 127.0.0.1:8081 的 metadata 信息为 {"version":"v2"}
+
+在 APISIX 中配置只获取 version = v1 的上游实例
 
 ```
 curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' -X PUT -i -d '
 {
-    "uris": "/*",
+    "uri": "/*",
     "hosts": [
         "httpbin"
     ],
@@ -136,9 +141,7 @@ curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f13
         "service_name": "httpbin",
         "type": "roundrobin",
         "discovery_args": {
-          "namespace_id": "test_ns",
-          "group_name": "test_group"
-          "metadata": {         <==== here
+          "metadata": {
             "version": "v1"
           }
         }
@@ -146,6 +149,47 @@ curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f13
 }'
 ```
 
-按照以上配置示例，APISIX upstream 中的服务列表是：
+查询
 
-192.168.0.10 ~ 192.168.0.12
+```
+curl http://127.0.0.1:9180/apisix/admin/routes/1 -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1'
+
+{
+  "value": {
+    "hosts": [
+      "httpbin"
+    ],
+    "update_time": 1677482525,
+    "upstream": {
+      "hash_on": "vars",
+      "nodes": [
+        {
+          "weight": 1,
+          "port": 8080,
+          "host": "127.0.0.1"
+        }
+      ],
+      "discovery_args": {
+        "metadata": {
+          "version": "v1"
+        }
+      },
+      "_service_name": "httpbin",
+      "_discovery_type": "nacos",
+      "pass_host": "pass",
+      "scheme": "http",
+      "type": "roundrobin"
+    },
+    "id": "1",
+    "status": 1,
+    "create_time": 1677482525,
+    "uri": "/*",
+    "priority": 0
+  },
+  "key": "/apisix/routes/1",
+  "createdIndex": 557,
+  "modifiedIndex": 559
+}
+```
+
+可以看到，只获取到了 version = v1 的上游实例 127.0.0.1:8080
