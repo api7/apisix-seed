@@ -22,26 +22,26 @@ func InitStore(key string, opt GenericStoreOption, stg Interface) error {
 	return nil
 }
 
-func InitStores(stg Interface) (err error) {
+func InitStores(stg Interface, conf *conf.Etcd) (err error) {
 	err = InitStore("routes", GenericStoreOption{
-		BasePath: conf.ETCDConfig.Prefix + "/routes",
-		Prefix:   conf.ETCDConfig.Prefix,
+		BasePath: conf.Prefix + "/routes",
+		Prefix:   conf.Prefix,
 	}, stg)
 	if err != nil {
 		return
 	}
 
 	err = InitStore("services", GenericStoreOption{
-		BasePath: conf.ETCDConfig.Prefix + "/services",
-		Prefix:   conf.ETCDConfig.Prefix,
+		BasePath: conf.Prefix + "/services",
+		Prefix:   conf.Prefix,
 	}, stg)
 	if err != nil {
 		return
 	}
 
 	err = InitStore("upstreams", GenericStoreOption{
-		BasePath: conf.ETCDConfig.Prefix + "/upstreams",
-		Prefix:   conf.ETCDConfig.Prefix,
+		BasePath: conf.Prefix + "/upstreams",
+		Prefix:   conf.Prefix,
 	}, stg)
 	if err != nil {
 		return
