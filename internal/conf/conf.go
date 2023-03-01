@@ -14,7 +14,7 @@ type DisBuilder func([]byte) (interface{}, error)
 
 var (
 	WorkDir     = "."
-	ETCDConfig  *Etcd
+	ETCDConfigs []*Etcd = make([]*Etcd, 0)
 	LogConfig   *Log
 	DisConfigs  = make(map[string]interface{})
 	DisBuilders = make(map[string]DisBuilder)
