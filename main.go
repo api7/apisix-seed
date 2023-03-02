@@ -53,37 +53,44 @@ func main() {
 		log.Fatal(err)
 	}
 
-	etcdClient, err := storer.NewEtcd(conf.ETCDConfig)
-	if err != nil {
-		panic(err)
-	}
+	rewriters := make([]components.Rewriter, 0)
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		err := storer.InitStores(etcdClient)
+	for _, config := range conf.ETCDConfigs {
+		etcdClient, err := storer.NewEtcd(config)
 		if err != nil {
 			panic(err)
 		}
-	}()
-	go func() {
-		defer wg.Done()
-		err := discoverer.InitDiscoverers()
-		if err != nil {
-			panic(err)
+	
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			err := storer.InitStores(etcdClient, config)
+			if err != nil {
+				panic(err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			err := discoverer.InitDiscoverers()
+			if err != nil {
+				panic(err)
+			}
+		}()
+		wg.Wait()
+	
+		rewriter := components.Rewriter{
+			Prefix: config.Prefix,
 		}
-	}()
-	wg.Wait()
-
-	rewriter := components.Rewriter{
-		Prefix: conf.ETCDConfig.Prefix,
+		rewriter.Init()
+		rewriters = append(rewriters, rewriter)
 	}
-	rewriter.Init()
-	defer rewriter.Close()
+	for _, rewriter := range rewriters {
+		defer rewriter.Close()
+	}
 
 	watcher := components.Watcher{}
-	err = watcher.Init()
+	err := watcher.Init()
 	if err != nil {
 		log.Error(err.Error())
 		return

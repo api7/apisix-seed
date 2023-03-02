@@ -14,7 +14,7 @@ type DisBuilder func([]byte) (interface{}, error)
 
 var (
 	WorkDir     = "."
-	ETCDConfig  *Etcd
+	ETCDConfigs []*Etcd = make([]*Etcd, 0)
 	LogConfig   *Log
 	DisConfigs  = make(map[string]interface{})
 	DisBuilders = make(map[string]DisBuilder)
@@ -44,7 +44,7 @@ type Log struct {
 }
 
 type Config struct {
-	Etcd      Etcd
+	Etcd      []Etcd
 	Log       Log
 	Discovery map[string]interface{}
 }
@@ -80,9 +80,10 @@ func InitConf() {
 		}
 
 		initLogConfig(config.Log)
-
-		if len(config.Etcd.Host) > 0 {
-			initEtcdConfig(config.Etcd)
+		for _, singleEtcd := range config.Etcd {
+			if len(singleEtcd.Host) > 0 {
+				initEtcdConfig(singleEtcd)
+			}
 		}
 	}
 }
@@ -99,13 +100,13 @@ func initEtcdConfig(conf Etcd) {
 		prefix = conf.Prefix
 	}
 
-	ETCDConfig = &Etcd{
+	ETCDConfigs = append(ETCDConfigs, &Etcd{
 		Host:     host,
 		User:     conf.User,
 		Password: conf.Password,
 		TLS:      conf.TLS,
 		Prefix:   prefix,
-	}
+	})
 }
 
 func initLogConfig(conf Log) {
