@@ -39,10 +39,8 @@ func NewEtcd(etcdConf *conf.Etcd) (*EtcdV3, error) {
 		Endpoints:            etcdConf.Host,
 		DialTimeout:          timeout,
 		DialKeepAliveTimeout: timeout,
-		//Username:             etcdConf.User,
-		//Password:             etcdConf.Password,
-		Username: "root",
-		Password: "5tHkHhYkjr6cQY",
+		Username:             etcdConf.User,
+		Password:             etcdConf.Password,
 	}
 
 	if etcdConf.TLS != nil && etcdConf.TLS.Verify {
