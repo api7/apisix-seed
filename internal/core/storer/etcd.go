@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/api7/gopkg/pkg/log"
@@ -38,8 +39,10 @@ func NewEtcd(etcdConf *conf.Etcd) (*EtcdV3, error) {
 		Endpoints:            etcdConf.Host,
 		DialTimeout:          timeout,
 		DialKeepAliveTimeout: timeout,
-		Username:             etcdConf.User,
-		Password:             etcdConf.Password,
+		//Username:             etcdConf.User,
+		//Password:             etcdConf.Password,
+		Username: "root",
+		Password: "5tHkHhYkjr6cQY",
 	}
 
 	if etcdConf.TLS != nil && etcdConf.TLS.Verify {
@@ -205,7 +208,14 @@ func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Mes
 
 		for event := range eventChan {
 			msgs := make([]*message.Message, 0, 16)
-
+			if event.Err() != nil {
+				log.Errorw("etcd watch error",
+					zap.String("watch key", prefix),
+					zap.Error(event.Err()),
+				)
+				close(ch)
+				return
+			}
 			for _, ev := range event.Events {
 				// We use a placeholder to mark a key to be a directory. So we need to skip the hack here.
 				if bytes.Equal(ev.Kv.Value, DirPlaceholder) {
