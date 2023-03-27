@@ -14,6 +14,7 @@ import (
 
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 )
 
 var (
@@ -205,7 +206,14 @@ func (s *EtcdV3) Watch(ctx context.Context, prefix string) <-chan []*message.Mes
 
 		for event := range eventChan {
 			msgs := make([]*message.Message, 0, 16)
-
+			if event.Err() != nil {
+				log.Errorw("etcd watch error",
+					zap.String("watch key", prefix),
+					zap.Error(event.Err()),
+				)
+				close(ch)
+				return
+			}
 			for _, ev := range event.Events {
 				// We use a placeholder to mark a key to be a directory. So we need to skip the hack here.
 				if bytes.Equal(ev.Kv.Value, DirPlaceholder) {
