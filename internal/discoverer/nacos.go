@@ -124,7 +124,7 @@ func (d *NacosDiscoverer) Stop() {
 
 func (d *NacosDiscoverer) Query(msg *message.Message) error {
 	serviceId := serviceID(msg.ServiceName(), msg.DiscoveryArgs())
-
+	println("Nacos: ", msg.ServiceName(), msg.DiscoveryArgs())
 	d.cacheMutex.Lock()
 	defer d.cacheMutex.Unlock()
 
@@ -142,6 +142,10 @@ func (d *NacosDiscoverer) Query(msg *message.Message) error {
 		nodes, err := d.fetch(dis)
 		if err != nil {
 			return err
+		}
+		if len(nodes) == 0 {
+			log.Warnf("No nodes found for service[%s]", serviceId)
+			return fmt.Errorf("no nodes found for service[%s]", serviceId)
 		}
 
 		msg.InjectNodes(nodes)
@@ -201,7 +205,10 @@ func (d *NacosDiscoverer) Update(oldMsg, msg *message.Message) error {
 		if err != nil {
 			return err
 		}
-
+		if len(nodes) == 0 {
+			log.Warnf("No nodes found for service[%s]", serviceId)
+			return fmt.Errorf("no nodes found for service[%s]", serviceId)
+		}
 		msg.InjectNodes(nodes)
 		newDiscover.nodes = nodes
 		newDiscover.a6Conf = map[string]*message.Message{
@@ -308,6 +315,11 @@ func (d *NacosDiscoverer) newSubscribeCallback(serviceId string, metadata interf
 				Port:   int(inst.Port),
 				Weight: weight,
 			})
+		}
+
+		if len(nodes) == 0 {
+			log.Warnf("No valid nodes found for service[%s]", serviceId)
+			return
 		}
 
 		d.cacheMutex.Lock()

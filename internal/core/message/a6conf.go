@@ -2,9 +2,31 @@ package message
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
+
+	"github.com/api7/gopkg/pkg/log"
 )
+
+// Sample route config
+// "labels":
+// {
+// 	"discovery_args.group_name": "group_name",
+// 	"discovery_args.namespace_id": "test_name",
+// 	"discovery_type": "nacos",
+// 	"service_name": "test-service",
+// 	"service_grpc_port": "10001"
+// },
+
+type Labels struct {
+	DiscoveryType            string `json:"discovery_type,omitempty"`
+	ServiceName              string `json:"service_name,omitempty"`
+	DiscoveryArgsNamespaceID string `json:"discovery_args.namespace_id,omitempty"`
+	DiscoveryArgsGroupName   string `json:"discovery_args.group_name,omitempty"`
+	ServiceGrpcPort          string `json:"service_grpc_port,omitempty"`
+}
 
 type UpstreamArg struct {
 	NamespaceID string                 `json:"namespace_id,omitempty"`
@@ -82,6 +104,7 @@ func embedElm(v reflect.Value, all map[string]interface{}) {
 	}
 
 	typ := v.Type()
+
 	fieldNum := typ.NumField()
 	for i := 0; i < fieldNum; i++ {
 		field := typ.Field(i)
@@ -102,10 +125,13 @@ func embedElm(v reflect.Value, all map[string]interface{}) {
 			continue
 		}
 
-		if fieldName == "DiscoveryType" || fieldName == "ServiceName" {
-			all["_"+tagName] = val.Interface()
-			delete(all, tagName)
-			continue
+		if fieldName == "DiscoveryType" || fieldName == "ServiceName" || fieldName == "DiscoveryArgs" {
+			name := typ.Name()
+			if name == "Upstream" {
+				// all["_"+tagName] = val.Interface()
+				delete(all, tagName)
+				continue
+			}
 		}
 
 		if val.Kind() == reflect.Ptr {
@@ -174,7 +200,14 @@ func NewUpstreams(value []byte) (A6Conf, error) {
 	return ups, nil
 }
 
+// "labels": {
+// 	"service_name":"aquaman-user",
+// 	"discovery_type":"nacos",
+// 	"service_grpc_port":"10001"
+// },
+
 type Routes struct {
+	Labels       Labels                 `json:"labels"`
 	Upstream     Upstream               `json:"upstream"`
 	All          map[string]interface{} `json:"-"`
 	hasNodesAttr bool
@@ -185,9 +218,33 @@ func (routes *Routes) GetAll() *map[string]interface{} {
 }
 
 func (routes *Routes) Marshal() ([]byte, error) {
+	// If grpc port is configured, modify all nodes' port to grpc port
+	if routes.Labels.ServiceGrpcPort != "" && routes.Upstream.Nodes != nil {
+		grpcPort, err := strconv.ParseInt(routes.Labels.ServiceGrpcPort, 10, 64)
+		if err != nil {
+			log.Errorf("invalid grpc port configuration: failed to parse port %s to integer for route %s: %s", routes.Labels.ServiceGrpcPort, routes.All["id"], err)
+			return nil, fmt.Errorf("invalid grpc port configuration: failed to parse port %s to integer for route %s: %s", routes.Labels.ServiceGrpcPort, routes.All["id"], err)
+		}
+		if nodes, ok := routes.Upstream.Nodes.([]*Node); ok {
+			nodesCopy := make([]*Node, len(nodes))
+			for i, n := range nodes {
+				nodesCopy[i] = &Node{
+					Host:   n.Host,
+					Weight: n.Weight,
+					Port:   int(grpcPort),
+				}
+				log.Infof("updated gRPC port to %d for node %s in route %s", grpcPort, n.Host, routes.All["id"])
+			}
+			routes.Upstream.Nodes = nodesCopy
+		}
+	}
+
 	embedElm(reflect.ValueOf(routes), routes.All)
 
-	return json.Marshal(routes.All)
+	// routes.All["labels"] = routes.Labels
+	bytes, error := json.Marshal(routes.All)
+	// print("a6conf marshal 2=====", string(bytes))
+	return bytes, error
 }
 
 func (routes *Routes) Inject(nodes interface{}) {
@@ -206,14 +263,30 @@ func NewRoutes(value []byte) (A6Conf, error) {
 	routes := &Routes{
 		All: make(map[string]interface{}),
 	}
+
+	// println("===", string(value))
+
 	err := unmarshal(value, routes)
 	if err != nil {
 		return nil, err
 	}
 
+	if id, ok := routes.All["id"].(string); ok {
+		if routes.Labels.ServiceName != "" {
+			println("upstream nodes in route id: ", id, " will be synced with service: ", routes.Labels.ServiceName)
+			routes.Upstream.ServiceName = routes.Labels.ServiceName
+			routes.Upstream.DiscoveryType = routes.Labels.DiscoveryType
+			routes.Upstream.DiscoveryArgs = &UpstreamArg{
+				NamespaceID: routes.Labels.DiscoveryArgsNamespaceID,
+				GroupName:   routes.Labels.DiscoveryArgsGroupName,
+			}
+		}
+	}
+
 	if routes.Upstream.Nodes != nil {
 		routes.hasNodesAttr = true
 	}
+
 	return routes, nil
 }
 

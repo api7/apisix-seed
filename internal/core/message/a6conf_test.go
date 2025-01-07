@@ -124,11 +124,6 @@ func TestMarshal_Routes(t *testing.T) {
         "pass_host": "pass",
         "type": "roundrobin",
         "hash_on": "vars",
-        "_discovery_type": "nacos",
-        "_service_name": "APISIX-NACOS",
-        "discovery_args": {
-            "group_name": "DEFAULT_GROUP"
-        },
         "nodes": [
             {
                 "host": "192.168.1.1",
@@ -151,6 +146,78 @@ func TestMarshal_Routes(t *testing.T) {
 	assert.Nil(t, err, caseDesc)
 
 	a6.Inject(&nodes)
+	ss, err := a6.Marshal()
+	assert.Nil(t, err, caseDesc)
+
+	assert.JSONEq(t, wantA6Str, string(ss))
+}
+
+func TestMarshal_Routes_With_Grpc_Port(t *testing.T) {
+	givenA6Str := `{
+    "status": 1,
+    "id": "3",
+    "uri": "/hh",
+	 "labels": {
+        "discovery_type": "nacos",
+        "discovery_args.group_name": "DEFAULT_GROUP",
+        "service_name": "test-service",
+		"service_grpc_port":"10001"
+    },
+    "upstream": {
+        "scheme": "http",
+        "pass_host": "pass",
+        "type": "roundrobin",
+        "hash_on": "vars",
+        "nodes": {
+            "192.168.1.1:10001": 1
+        }
+    },
+    "create_time": 1648871506,
+    "priority": 0,
+    "update_time": 1648871506
+}`
+	nodes := []*Node{
+		{Host: "192.168.1.1", Port: 80, Weight: 1},
+		{Host: "192.168.1.2", Port: 80, Weight: 1},
+	}
+
+	wantA6Str := `{
+    "status": 1,
+    "id": "3",
+    "uri": "/hh",
+	"labels": {
+        "discovery_type": "nacos",
+        "discovery_args.group_name": "DEFAULT_GROUP",
+        "service_name": "test-service",
+		"service_grpc_port":"10001"
+    },
+    "upstream": {
+        "scheme": "http",
+        "pass_host": "pass",
+        "type": "roundrobin",
+        "hash_on": "vars",
+        "nodes": [
+            {
+                "host": "192.168.1.1",
+                "port": 10001,
+                "weight": 1
+            },
+            {
+                "host": "192.168.1.2",
+                "port": 10001,
+                "weight": 1
+            }
+        ]
+    },
+    "create_time": 1648871506,
+    "priority": 0,
+    "update_time": 1648871506
+}`
+	caseDesc := "sanity"
+	a6, err := NewA6Conf([]byte(givenA6Str), A6RoutesConf)
+	assert.Nil(t, err, caseDesc)
+
+	a6.Inject(nodes)
 	ss, err := a6.Marshal()
 	assert.Nil(t, err, caseDesc)
 

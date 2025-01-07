@@ -46,7 +46,11 @@ func initLogger(logConf *conf.Log) error {
 	return nil
 }
 
+var VERSION = 1.1
+
 func main() {
+	println("=========== version ", VERSION, " ============")
+
 	conf.InitConf()
 
 	if err := initLogger(conf.LogConfig); err != nil {

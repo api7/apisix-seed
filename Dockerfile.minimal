@@ -1,0 +1,31 @@
+FROM golang:alpine AS build
+
+WORKDIR /build
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux
+
+COPY . .
+
+RUN go version
+
+RUN mkdir -p /usr/local/apisix-seed/logs
+
+RUN go build -o apisix-seed main.go
+
+FROM scratch
+
+WORKDIR /usr/local/apisix-seed
+
+COPY --from=build /usr/local/apisix-seed/logs /usr/local/apisix-seed/logs
+
+COPY --from=build /build/apisix-seed .
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build /build/conf/conf.yaml conf/conf.yaml
+
+ENV PATH=$PATH:/usr/local/apisix-seed
+
+ENV APISIX_SEED_WORKDIR /usr/local/apisix-seed
+
+CMD [ "/usr/local/apisix-seed/apisix-seed" ]

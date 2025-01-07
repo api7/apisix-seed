@@ -13,7 +13,7 @@ etcd:
     # the default value is true, e.g. the certificate will be verified strictly.
 log:
   level: warn
-  path: apisix-seed.log           # path is the file to write logs to.  Backup log files will be retained in the same directory
+  path: logs/apisix-seed.log           # path is the file to write logs to.  Backup log files will be retained in the same directory
   maxage: 168h                    # maxage is the maximum number of days to retain old log files based on the timestamp encoded in their filename
   maxsize: 104857600              # maxsize is the maximum size in megabytes of the log file before it gets rotated. It defaults to 100mb
   rotation_time: 1h               # rotation_time is the log rotation time
@@ -30,9 +30,3 @@ discovery:                       # service discovery center
       connect: 2000              # default 2000ms
       send: 2000                 # default 2000ms
       read: 5000                 # default 5000ms
-  zookeeper:
-    hosts:
-      - "127.0.0.1:2181"
-    prefix: /zookeeper
-    weight: 100                  # default weight for node
-    timeout: 10                  # default 10s

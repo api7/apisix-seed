@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  apisix_seed_dev:
+    image: hugozhu/apisix-seed
+    build:
+      context: .
+      dockerfile: Dockerfile.minimal
+    restart: always
+    volumes:
+      - ./conf/conf.yaml:/usr/local/apisix-seed/conf/conf.yaml:ro
+      - ./logs:/usr/local/apisix-seed/logs
+    networks:
+      apisix-seed:
+        ipv4_address: 172.50.238.50
+
+networks:
+  apisix-seed:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.50.238.0/24
+          gateway: 172.50.238.1
+
